@@ -36,7 +36,7 @@ export default function ForgotPasswordPage() {
           <div className="text-center mt-10">
             <p className="text-gray-400 text-[11px] font-bold uppercase tracking-tight">
               Chưa có tài khoản?{' '}
-              <Link href="/register" className="text-[#ff5528] hover:underline ml-1">
+              <Link href="/register-page" className="text-[#ff5528] hover:underline ml-1">
                 Đăng ký ngay
               </Link>
             </p>

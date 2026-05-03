@@ -1,43 +1,47 @@
 'use client'
 
 import Link from 'next/link'
-import { ForgotPasswordForm } from '@/app/components/ForgotPasswordForm'
+import { ForgotPasswordForm } from '@/app/(auth)/forgot-password/ForgotPasswordForm'
 import { Header } from '@/app/components/layout/header'
 import { Footer } from '@/app/components/layout/footer'
+import { ArrowLeft } from 'lucide-react'
+import { motion } from 'framer-motion'
 
 export default function ForgotPasswordPage() {
   return (
     <>
       <Header />
-      <main className="bg-gray-50 min-h-screen py-12 mt-20">
-        <div className="max-w-md mx-auto px-4">
-          {/* Back to Login Link */}
+      <main className="bg-gray-50/30 min-h-screen py-24 mt-10">
+        <motion.div 
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="max-w-md mx-auto px-6"
+        >
           <Link
-            href="/login"
-            className="inline-flex items-center gap-2 text-[#ff5528] hover:text-orange-600 font-semibold mb-8"
+            href="/login-page"
+            className="group inline-flex items-center gap-2 text-gray-400 hover:text-[#ff5528] font-black text-[10px] uppercase tracking-widest mb-8 transition-colors"
           >
-            ← Back to Login
+            <ArrowLeft size={26} className="group-hover:-translate-x-1 transition-transform" />
+            Back to Login
           </Link>
 
-          {/* Form Container */}
-          <div className="bg-white rounded-lg shadow-md p-8">
-            <ForgotPasswordForm
-              onSuccess={(message) => {
-                console.log('✅', message)
-              }}
-            />
-          </div>
+          <ForgotPasswordForm
+            onSuccess={(message) => {
+              // Bạn có thể xử lý thêm logic ở đây nếu cần
+              console.log('Reset Flow Success:', message)
+            }}
+          />
 
-          {/* Footer Links */}
-          <div className="text-center mt-8">
-            <p className="text-gray-600 text-sm">
-              Don&apos;t have an account?{' '}
-              <Link href="/register" className="text-[#ff5528] hover:text-orange-600 font-semibold">
-                Sign up here
+          <div className="text-center mt-10">
+            <p className="text-gray-400 text-[11px] font-bold uppercase tracking-tight">
+              Chưa có tài khoản?{' '}
+              <Link href="/register" className="text-[#ff5528] hover:underline ml-1">
+                Đăng ký ngay
               </Link>
             </p>
           </div>
-        </div>
+        </motion.div>
       </main>
       <Footer />
     </>

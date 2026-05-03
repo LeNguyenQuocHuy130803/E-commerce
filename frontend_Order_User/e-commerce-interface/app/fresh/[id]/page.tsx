@@ -3,8 +3,9 @@
 import { useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
-import { Heart, ArrowLeft, ShoppingCart, Loader2 } from "lucide-react";
+import { Heart, ArrowLeft, ShoppingCart, Loader2, Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { motion } from "framer-motion"; // ✅ Đã thêm Framer Motion
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { Fresh } from "@/types/fresh";
@@ -43,16 +44,11 @@ export default function FreshDetailPage() {
   const addToCartMutation = useMutation({
     mutationFn: ({ productId, selectedQuantity }: { productId: number; selectedQuantity: number }) => 
       CartService.addProductToCart(PRODUCT_TYPES.FRESH, productId, selectedQuantity),
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       // Cập nhật lại số lượng giỏ hàng trên Header
       queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
       
       toast.success(`Đã thêm ${fresh?.name} vào Giỏ hàng thành công`, {
-        // Nút màu cam chuẩn hệ thống
-        actionButtonStyle: {
-          backgroundColor: 'var(--primary)',
-          color: 'var(--primary-foreground)',
-        },
         action: {
           label: "Xem Giỏ Hàng",
           onClick: () => router.push("/cart"),
@@ -72,174 +68,175 @@ export default function FreshDetailPage() {
 
   const isAddingToCart = addToCartMutation.isPending;
 
-  const handleAddToCart = () => {
-    if (!fresh) return;
-    addToCartMutation.mutate({ 
-      productId: fresh.id, 
-      selectedQuantity: quantity 
-    });
-  };
+  // --- RENDERING LOGIC ---
 
-  // 6. Hàm Render theo trạng thái
-  const renderContent = () => {
-    if (isLoading) {
-      return (
-        <div className="flex justify-center items-center py-32">
-          <Loader2 className="w-12 h-12 text-primary animate-spin" />
-        </div>
-      );
-    }
-
-    if (!isValidFreshId || error || !fresh) {
-      return (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
-          <p className="text-red-700 font-semibold text-lg mb-4">
-            ❌ {!isValidFreshId ? "ID sản phẩm không hợp lệ" : error?.message || "Không tìm thấy thực phẩm này"}
-          </p>
-          <button
-            onClick={() => router.back()}
-            className="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-          >
-            Quay lại
-          </button>
-        </div>
-      );
-    }
-
+  // Hiển thị trạng thái Loading
+  if (isLoading) {
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Hình ảnh */}
-        <div className="flex flex-col gap-4">
-          <div className="relative w-full h-96 rounded-3xl overflow-hidden bg-gray-100 group shadow-sm">
-            <Image
-              src={fresh.imageUrl}
-              alt={fresh.name}
-              fill
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              priority
-            />
-            {fresh.featured && (
-              <div className="absolute top-4 left-4 bg-red-500 text-white px-4 py-2 rounded-full font-bold text-sm shadow-md">
-                Best Seller
-              </div>
-            )}
-            <button
-              onClick={() => setIsFavorited(!isFavorited)}
-              className="absolute top-4 right-4 bg-white rounded-full p-3 shadow-lg hover:shadow-xl transition-all active:scale-90"
-            >
-              <Heart
-                size={24}
-                className={isFavorited ? "fill-red-500 text-red-500" : "text-gray-400"}
-              />
-            </button>
-          </div>
-        </div>
-
-        {/* Thông tin chi tiết */}
-        <div className="flex flex-col gap-2">
-          <div>
-            <p className="text-sm font-semibold text-gray-400 mb-2 uppercase tracking-widest">
-              {fresh.category}
-            </p>
-            <h1 className="text-4xl lg:text-5xl font-bold text-foreground tracking-tight">
-              {fresh.name}
-            </h1>
-          </div>
-
-          <div className="flex gap-8 items-start py-4 border-b border-gray-200">
-            <h2 className="text-lg font-bold text-foreground min-w-max">Description</h2>
-            <p className="text-gray-600 leading-relaxed text-base">{fresh.description}</p>
-          </div>
-
-          <div className="flex items-center gap-4 py-4 bg-gray-50 rounded-xl px-4 border border-gray-100">
-            <span className="font-semibold text-gray-600">Stock:</span>
-            <span className="text-xl font-bold text-primary">{fresh.quantity} units</span>
-            <span className={`ml-auto px-3 py-1 rounded-full text-xs font-bold uppercase ${
-              fresh.quantity > 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-            }`}>
-              {fresh.quantity > 0 ? "In Stock" : "Out of Stock"}
-            </span>
-          </div>
-
-          <div className="py-6 border-t border-b border-gray-200">
-            <p className="text-gray-500 text-sm mb-2 font-medium">Price per unit</p>
-            <div className="flex items-baseline gap-1">
-              <span className="text-5xl font-black text-red-500">
-                ${(fresh.price / 1000).toFixed(1)}
-              </span>
-              <span className="text-xl font-bold text-red-500">/{fresh.unit}</span>
-            </div>
-          </div>
-
-          {/* Selector số lượng */}
-          <div className="flex items-center gap-6 py-4">
-            <span className="font-bold text-gray-700">Quantity:</span>
-            <div className="flex items-center border-2 border-gray-100 rounded-xl overflow-hidden bg-white shadow-sm">
-              <button
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="px-5 py-2 hover:bg-gray-50 font-bold text-xl transition-colors"
-              >
-                −
-              </button>
-              <span className="px-8 py-2 font-black text-lg border-l border-r border-gray-100 min-w-[70px] text-center">
-                {quantity}
-              </span>
-              <button
-                onClick={() => setQuantity(Math.min(fresh.quantity, quantity + 1))}
-                className="px-5 py-2 hover:bg-gray-50 font-bold text-xl transition-colors"
-                disabled={quantity >= fresh.quantity}
-              >
-                +
-              </button>
-            </div>
-          </div>
-
-          {/* Box Tổng tiền */}
-          <div className="bg-primary/5 px-6 py-5 rounded-2xl mb-4 border-2 border-primary/10">
-            <p className="text-gray-500 text-sm mb-1 font-semibold">Order Total</p>
-            <p className="text-4xl font-black text-primary">
-              ${(totalPrice / 1000).toFixed(1)}
-            </p>
-          </div>
-
-          {/* Nút Order */}
-          <button
-            onClick={handleAddToCart}
-            disabled={fresh.quantity === 0 || isAddingToCart}
-            className={`w-full py-5 px-6 rounded-2xl font-bold text-xl flex items-center justify-center gap-3 transition-all duration-300 shadow-lg active:scale-[0.97] ${
-              fresh.quantity === 0 || isAddingToCart
-                ? "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
-                : "bg-red-500 hover:bg-red-600 text-white shadow-red-200"
-            }`}
-          >
-            {isAddingToCart ? (
-              <Loader2 className="animate-spin" size={26} />
-            ) : (
-              <ShoppingCart size={26} />
-            )}
-            <span>{isAddingToCart ? "Adding to cart..." : `Order Now (${quantity} items)`}</span>
-          </button>
-        </div>
+      <div className="h-screen flex items-center justify-center bg-white">
+        <Loader2 className="animate-spin text-[#ff5528]" size={40} />
       </div>
     );
-  };
+  }
 
+  // Hiển thị trạng thái Lỗi hoặc Không tìm thấy
+  if (!isValidFreshId || error || !fresh) {
+    return (
+      <div className="h-screen flex items-center justify-center flex-col gap-4 bg-white">
+        <p className="text-lg font-bold text-red-500">❌ Không tìm thấy thực phẩm này</p>
+        <button 
+          onClick={() => router.back()} 
+          className="bg-[#ff5528] text-white px-8 py-2 rounded-xl font-bold hover:bg-orange-600 transition-colors"
+        >
+          Quay lại
+        </button>
+      </div>
+    );
+  }
+
+  // Hiển thị Chi tiết sản phẩm
   return (
-    <main className="bg-background min-h-screen">
+    <main className="bg-white min-h-screen">
       <ProductHeader />
       
-      <div className="max-w-7xl mx-auto px-4 py-12 pt-22">
-        <button
+      {/* Container: Thu hẹp chiều ngang lại bằng max-w-6xl */}
+      <div className="max-w-6xl mx-auto px-6 py-10 lg:py-16 pt-28">
+        
+        {/* Nút Back: Hiệu ứng trượt mượt mà */}
+        <motion.button
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-primary hover:text-primary/80 transition-all mb-8 group"
+          className="flex items-center gap-2 text-gray-400 hover:text-[#ff5528] transition-colors mb-8 font-bold group text-sm"
         >
-          <ArrowLeft size={22} className="group-hover:-translate-x-1.5 transition-transform" />
-          <span className="font-bold text-lg">Back to Fresh Market</span>
-        </button>
+          <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform duration-300" />
+          <span>Quay lại Fresh Market</span>
+        </motion.button>
 
-        {renderContent()}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
+          
+          {/* CỘT TRÁI: Ảnh sản phẩm */}
+          {/* Dùng Sticky và giới hạn max-width để ảnh không bị bè */}
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8 }}
+            className="lg:sticky lg:top-32 flex justify-center"
+          >
+            <div className="relative aspect-square w-full max-w-[480px] rounded-[2.5rem] overflow-hidden shadow-xl border border-gray-50 group">
+              <Image
+                src={fresh.imageUrl}
+                alt={fresh.name}
+                fill
+                priority
+                className="object-cover group-hover:scale-105 transition-transform duration-1000 ease-in-out"
+              />
+              
+              {/* Badge Best Seller */}
+              {fresh.featured && (
+                <div className="absolute top-6 left-6 bg-[#ff5528] text-white px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg">
+                  Best Seller
+                </div>
+              )}
+
+              {/* Nút Yêu thích */}
+              <button
+                onClick={() => setIsFavorited(!isFavorited)}
+                className="absolute top-6 right-6 bg-white/90 backdrop-blur-md rounded-full p-3 shadow-lg active:scale-75 transition-all"
+              >
+                <Heart size={22} className={isFavorited ? "fill-red-500 text-red-500" : "text-gray-400"} />
+              </button>
+            </div>
+          </motion.div>
+
+          {/* CỘT PHẢI: Nội dung chi tiết */}
+          {/* Hiệu ứng trượt nhẹ từ dưới lên */}
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.1 }}
+            className="flex flex-col"
+          >
+            {/* Tên & Mô tả */}
+            <div className="mb-8">
+              <span className="px-3 py-1 bg-orange-50 text-[#ff5528] rounded-full text-[10px] font-black uppercase tracking-widest mb-4 inline-block border border-orange-100">
+                {fresh.category}
+              </span>
+              <h1 className="text-4xl lg:text-5xl font-black text-gray-900 leading-tight mb-4 tracking-tighter">
+                {fresh.name}
+              </h1>
+              <p className="text-gray-500 text-base leading-relaxed font-medium max-w-md">
+                {fresh.description}
+              </p>
+            </div>
+
+            <div className="space-y-10">
+              
+              {/* Box Giá & Trạng thái */}
+              <div className="flex items-center justify-between border-b border-gray-100 pb-10">
+                <div>
+                  <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-2">Giá niêm yết</p>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-5xl font-black text-[#ff5528]">
+                      ${(fresh.price / 1000).toFixed(1)}
+                    </span>
+                    <span className="text-lg font-bold text-gray-300">/{fresh.unit}</span>
+                  </div>
+                </div>
+                <div className={`px-4 py-1.5 rounded-xl text-[11px] font-bold ${fresh.quantity > 0 ? "bg-green-50 text-green-600 border border-green-100" : "bg-red-50 text-red-600"}`}>
+                  {fresh.quantity > 0 ? `Còn ${fresh.quantity} sản phẩm` : "Hết hàng"}
+                </div>
+              </div>
+
+              {/* Box Tùy chỉnh số lượng */}
+              <div className="flex items-center gap-6">
+                <span className="font-black text-gray-900 uppercase text-[11px] tracking-widest">Số lượng</span>
+                <div className="flex items-center bg-gray-50 rounded-xl p-1.5 border border-gray-100">
+                  <button 
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))} 
+                    className="w-10 h-10 flex items-center justify-center hover:bg-white rounded-lg transition-all shadow-sm active:scale-90"
+                  >
+                    <Minus size={16}/>
+                  </button>
+                  <span className="w-14 text-center font-black text-xl">{quantity}</span>
+                  <button 
+                    onClick={() => setQuantity(Math.min(fresh.quantity, quantity + 1))} 
+                    className="w-10 h-10 flex items-center justify-center hover:bg-white rounded-lg transition-all shadow-sm active:scale-90"
+                  >
+                    <Plus size={16}/>
+                  </button>
+                </div>
+              </div>
+
+              {/* Box Tổng tiền & Thanh toán - KHÔNG DÙNG NỀN ĐEN NỮA */}
+              <div className="bg-gray-50 border-2 border-orange-100 rounded-[2.5rem] p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-sm">
+                <div>
+                  <p className="text-gray-400 text-[10px] font-bold uppercase mb-1 tracking-widest">Tổng chi phí dự kiến</p>
+                  <p className="text-4xl font-black text-[#ff5528]">
+                    ${(totalPrice / 1000).toFixed(1)}
+                  </p>
+                </div>
+                
+                <button
+                  onClick={() => addToCartMutation.mutate({ productId: fresh.id, selectedQuantity: quantity })}
+                  disabled={fresh.quantity === 0 || isAddingToCart}
+                  className="bg-[#ff5528] hover:bg-orange-600 transition-all duration-300 text-white px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 active:scale-95 shadow-lg shadow-orange-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isAddingToCart ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <ShoppingCart size={18} />
+                  )}
+                  <span>{isAddingToCart ? "Đang xử lý..." : "Đặt hàng ngay"}</span>
+                </button>
+              </div>
+
+            </div>
+          </motion.div>
+        </div>
       </div>
-
+      
       <Footer />
     </main>
   );

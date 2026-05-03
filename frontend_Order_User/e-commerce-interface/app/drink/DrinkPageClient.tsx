@@ -7,8 +7,8 @@ import { Coffee } from "lucide-react";
 import { FilterSidebar } from "@/app/components/filter_sidebar";
 import { Footer } from "@/app/components/layout/footer";
 import { ProductHeader } from "@/app/components/layout/product-header";
-import { HeroBanner } from "@/app/components/hero-banner";
-import { ResultsDisplay } from "@/app/components/results-display";
+import { HeroBanner } from "@/app/components/banner_products";
+import { ResultsDisplay } from "@/app/components/product_page_ffdd/results-display";
 
 // ✨ Updated: Use React Query hook instead of manual state
 import { useDrinksQuery } from "@/hooks/useDrinksQuery";

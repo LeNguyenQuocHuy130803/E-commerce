@@ -4,10 +4,10 @@ import { useState, useRef, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Cake } from 'lucide-react'
 import { FilterSidebar } from '@/app/components/filter_sidebar'
-import { ResultsDisplay } from '@/app/components/results-display'
+import { ResultsDisplay } from '@/app/components/product_page_ffdd/results-display'
 import { ProductHeader } from '@/app/components/layout/product-header'
 import { Footer } from '@/app/components/layout/footer'
-import { HeroBanner } from '@/app/components/hero-banner'
+import { HeroBanner } from '@/app/components/banner_products'
 import { useDessertQuery } from '@/hooks/useDessertQuery'
 import type { FilterParams } from '@/types/drink'
 
@@ -131,7 +131,7 @@ export function DessertPageClient() {
             loading={loading}
             error={error}
             results={desserts}
-            productType="food"
+            productType="dessert"
             resultCount={Object.keys(filters || {}).length === 0 ? `Showing ${desserts.length} products` : undefined}
             showPagination={Object.keys(filters || {}).length === 0}
             onPreviousPage={() => setCurrentPage((prev) => Math.max(1, prev - 1))}

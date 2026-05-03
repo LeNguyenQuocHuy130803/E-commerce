@@ -1,7 +1,7 @@
 'use client';
 
-import ProductCard from '@/app/components/product-card';
-import { ProductCardSkeleton } from '@/app/components/product-card-skeleton';
+import ProductCard from '@/app/components/product_page_ffdd/product-card';
+import { ProductCardSkeleton } from '@/app/components/product_page_ffdd/product-card-skeleton';
 import type { Drink } from '@/types/drink';
 
 interface ResultsDisplayProps {
@@ -15,7 +15,7 @@ interface ResultsDisplayProps {
   onNextPage?: () => void;
   currentPage?: number;
   totalPages?: number;
-  productType?: 'drink' | 'food' | 'fresh'; // Để biết redirect tới loại nào
+  productType?: 'drink' | 'food' | 'fresh' | 'dessert'; // Để biết redirect tới loại nào
 }
 
 export function ResultsDisplay({

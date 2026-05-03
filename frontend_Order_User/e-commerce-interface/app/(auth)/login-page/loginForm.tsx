@@ -46,8 +46,8 @@ export default function LoginForm() {
       setTimeout(() => {
         router.push('/')
       }, 1000)
-    } catch (err: any) {
-      setError(err.message || 'Login failed, please try again.')
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Login failed, please try again.')
     } finally {
       setLoading(false)
     }
@@ -219,7 +219,7 @@ export default function LoginForm() {
         {/* Register */}
         <div className="mt-6 text-center border-t border-gray-200 pt-6">
           <p className="text-gray-600">
-            Don't have an account yet?{' '}
+            Don&apos;t have an account yet?{' '}
             <a
               href="/register-page"
               className="text-[#ff5528] hover:text-[#e64a22] font-semibold transition"

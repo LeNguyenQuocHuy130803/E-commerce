@@ -32,14 +32,14 @@ export const getAllFoodsPaginated = async (
 
     if (!res.ok) {
       const error = await res.json().catch(() => ({ message: res.statusText }));
-      throw new Error(error.message || "Failed to fetch foods");
+      throw new Error((error as Error).message || "Failed to fetch foods");
     }
 
     const data = await res.json();
     console.log("✅ getAllFoodsPaginated response:", data);
     return data;
-  } catch (error: any) {
-    console.error("❌ Error in getAllFoodsPaginated:", error.message);
+  } catch (error: unknown) {
+    console.error("❌ Error in getAllFoodsPaginated:", (error as Error).message);
     throw error;
   }
 };
@@ -59,14 +59,14 @@ export const getFoodById = async (id: number): Promise<Food> => {
 
     if (!res.ok) {
       const error = await res.json().catch(() => ({ message: res.statusText }));
-      throw new Error(error.message || "Failed to fetch food");
+      throw new Error((error as Error).message || "Failed to fetch food");
     }
 
     const data = await res.json();
     console.log("✅ getFoodById response:", data);
     return data;
-  } catch (error: any) {
-    console.error("❌ Error in getFoodById:", error.message);
+  } catch (error: unknown) {
+    console.error("❌ Error in getFoodById:", (error as Error).message);
     throw error;
   }
 };
@@ -99,14 +99,14 @@ export const searchFoods = async (
 
     if (!res.ok) {
       const error = await res.json().catch(() => ({ message: res.statusText }));
-      throw new Error(error.message || "Failed to search foods");
+      throw new Error((error as Error).message || "Failed to search foods");
     }
 
     const data = await res.json();
     console.log("✅ searchFoods response:", data);
     return data;
-  } catch (error: any) {
-    console.error("❌ Error in searchFoods:", error.message);
+  } catch (error: unknown) {
+    console.error("❌ Error in searchFoods:", (error as Error).message);
     throw error;
   }
 };
@@ -148,14 +148,14 @@ export const filterFoods = async (
 
     if (!res.ok) {
       const error = await res.json().catch(() => ({ message: res.statusText }));
-      throw new Error(error.message || "Failed to filter foods");
+      throw new Error((error as Error).message || "Failed to filter foods");
     }
 
     const data = await res.json();
     console.log("✅ filterFoods response:", data);
     return data;
-  } catch (error: any) {
-    console.error("❌ Error in filterFoods:", error.message);
+  } catch (error: unknown) {
+    console.error("❌ Error in filterFoods:", (error as Error).message);
     throw error;
   }
 };

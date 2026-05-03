@@ -5,6 +5,7 @@ import { Heart } from "lucide-react"
 import { useState } from "react"
 import Link from "next/link"
 import { useAddToCart } from "@/hooks/useAddToCart"
+import { PRODUCT_TYPES, type ProductType } from "@/types/cart"
 
 interface Product {
   id: number
@@ -18,6 +19,13 @@ interface ProductCardProps {
   product: Product
   type: 'drink' | 'food' | 'fresh'
 }
+
+const PRODUCT_TYPE_BY_CARD_TYPE: Record<ProductCardProps["type"], ProductType> = {
+  drink: PRODUCT_TYPES.DRINK,
+  food: PRODUCT_TYPES.FOOD,
+  fresh: PRODUCT_TYPES.FRESH,
+}
+
 // file này dùng để hiển thị giao diện card sản phẩm chung cho cả 3 loại: drink, food, fresh
 export default function ProductCard({ product, type }: ProductCardProps) {
   const [isFavorited, setIsFavorited] = useState(false)
@@ -25,7 +33,7 @@ export default function ProductCard({ product, type }: ProductCardProps) {
   const [success, setSuccess] = useState(false)
   
   // ✅ Dùng hook useAddToCart (tự động refetch cart)
-  const { addToCartAsync, isLoading, error: mutationError } = useAddToCart()
+  const { addToCartAsync, isLoading } = useAddToCart()
 
   const { id, name, imageUrl, featured, price } = product
 
@@ -40,8 +48,7 @@ export default function ProductCard({ product, type }: ProductCardProps) {
       setError(null)
       setSuccess(false)
 
-      // Convert type thành productType (food → FOOD, drink → DRINK, etc)
-      const productType = type.toUpperCase()
+      const productType = PRODUCT_TYPE_BY_CARD_TYPE[type]
       const quantity = 1
 
       console.log(`🛒 [ProductCard] Adding to cart:`, { productType, productId: id, quantity })
@@ -54,8 +61,8 @@ export default function ProductCard({ product, type }: ProductCardProps) {
 
       // Ẩn success message sau 2 giây
       setTimeout(() => setSuccess(false), 2000)
-    } catch (err: any) {
-      const errorMsg = err.message || 'Failed to add to cart'
+    } catch (err: unknown) {
+      const errorMsg = (err as Error).message || 'Failed to add to cart'
       console.log(`⚠️ [ProductCard] Error:`, errorMsg)
       setError(errorMsg)
 

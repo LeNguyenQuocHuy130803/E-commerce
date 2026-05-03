@@ -98,7 +98,7 @@ export const authOptions: NextAuthOptions = {
 }
 
 declare module "next-auth" {
-  interface User extends UserType {}
+  type User = UserType
 }
 
 declare module "next-auth" {
@@ -108,5 +108,5 @@ declare module "next-auth" {
 }
 
 declare module "next-auth/jwt" {
-  interface JWT extends UserType {}
+  type JWT = UserType & import('next-auth/jwt').DefaultJWT
 }

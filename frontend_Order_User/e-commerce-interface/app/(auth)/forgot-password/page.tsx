@@ -31,7 +31,7 @@ export default function ForgotPasswordPage() {
           {/* Footer Links */}
           <div className="text-center mt-8">
             <p className="text-gray-600 text-sm">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link href="/register" className="text-[#ff5528] hover:text-orange-600 font-semibold">
                 Sign up here
               </Link>

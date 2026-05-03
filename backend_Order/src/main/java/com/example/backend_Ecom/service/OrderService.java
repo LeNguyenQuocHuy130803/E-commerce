@@ -283,6 +283,11 @@ public class OrderService {
             throw new AppException(ErrorCode.FORBIDDEN, "You do not have permission to cancel this order");
         }
 
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            log.info("ℹ️ Order {} already CANCELLED — returning current state without restoring inventory again", orderId);
+            return mapToDto(order);
+        }
+
         if (order.getStatus() == OrderStatus.DELIVERING || order.getStatus() == OrderStatus.DELIVERED) {
             throw new AppException(ErrorCode.INVALID_REQUEST,
                 "Cannot cancel order with status: " + order.getStatus() + ". Shipper is already delivering or order delivered.");

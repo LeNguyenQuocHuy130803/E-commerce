@@ -49,8 +49,8 @@ export const useUpdateUserMutation = () => {
       })
     },
 
-    onError: (error: any) => {
-      console.error('❌ [useUpdateUserMutation] Error:', error.message)
+    onError: (error: unknown) => {
+      console.error('❌ [useUpdateUserMutation] Error:', (error as Error).message)
     },
   })
 }

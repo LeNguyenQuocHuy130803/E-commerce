@@ -46,7 +46,6 @@ export function ForgotPasswordForm({ onSuccess }: ForgotPasswordFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [otpSentTime, setOtpSentTime] = useState<number | null>(null)
   const [resendCountdown, setResendCountdown] = useState(0)
 
   const {
@@ -61,7 +60,6 @@ export function ForgotPasswordForm({ onSuccess }: ForgotPasswordFormProps) {
     register: register2,
     handleSubmit: handleSubmit2,
     formState: { errors: errors2 },
-    watch: watch2,
   } = useForm<Step2Data>({
     resolver: zodResolver(step2Schema),
     defaultValues: {
@@ -78,7 +76,6 @@ export function ForgotPasswordForm({ onSuccess }: ForgotPasswordFormProps) {
       await requestPasswordReset(data.email)
       setEmail(data.email)
       setSuccessMessage(`OTP sent to ${data.email}. Check your inbox.`)
-      setOtpSentTime(Date.now())
       setResendCountdown(60)
       
       // Auto-advance to step 2 after 2 seconds
@@ -86,8 +83,8 @@ export function ForgotPasswordForm({ onSuccess }: ForgotPasswordFormProps) {
         setStep(2)
         setSuccessMessage('')
       }, 2000)
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.message || err.message || 'Failed to send OTP'
+    } catch (err: unknown) {
+      const errorMsg = err.response?.data?.message || (err as Error).message || 'Failed to send OTP'
       setError(errorMsg)
       console.error('Error requesting password reset:', errorMsg)
     } finally {
@@ -109,8 +106,8 @@ export function ForgotPasswordForm({ onSuccess }: ForgotPasswordFormProps) {
       setTimeout(() => {
         window.location.href = '/login'
       }, 2000)
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.message || err.message || 'Failed to reset password'
+    } catch (err: unknown) {
+      const errorMsg = err.response?.data?.message || (err as Error).message || 'Failed to reset password'
       setError(errorMsg)
       console.error('Error resetting password:', errorMsg)
     } finally {
@@ -126,10 +123,9 @@ export function ForgotPasswordForm({ onSuccess }: ForgotPasswordFormProps) {
     try {
       await requestPasswordReset(email)
       setSuccessMessage('OTP resent successfully!')
-      setOtpSentTime(Date.now())
       setResendCountdown(60)
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.message || err.message || 'Failed to resend OTP'
+    } catch (err: unknown) {
+      const errorMsg = err.response?.data?.message || (err as Error).message || 'Failed to resend OTP'
       setError(errorMsg)
     } finally {
       setIsLoading(false)

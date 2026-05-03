@@ -57,10 +57,10 @@ export async function GET(
     })
 
     return NextResponse.json(data)
-  } catch (error: any) {
-    console.error('❌ [GET /api/users] Exception:', error.message)
+  } catch (error: unknown) {
+    console.error('❌ [GET /api/users] Exception:', (error as Error).message)
     return NextResponse.json(
-      { message: error.message || 'Internal server error' },
+      { message: (error as Error).message || 'Internal server error' },
       { status: 500 }
     )
   }

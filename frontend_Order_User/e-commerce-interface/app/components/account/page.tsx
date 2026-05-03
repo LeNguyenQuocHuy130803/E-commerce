@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { User, ShoppingBag, MapPin, Settings, LogOut, Edit, ArrowLeft } from 'lucide-react'
+import { User, ShoppingBag, MapPin, Settings, LogOut, Edit } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -26,6 +26,7 @@ export default function AccountPage() {
   useEffect(() => {
     if (user && !loading) {
       // Set profile from logged-in user data
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setProfile({
         id: user.id,
         username: user.userName,

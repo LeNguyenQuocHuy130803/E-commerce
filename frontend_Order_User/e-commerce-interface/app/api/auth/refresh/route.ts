@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
     }
 
     return res
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Refresh error:', error)
     return NextResponse.json(
       { message: 'Refresh failed' },

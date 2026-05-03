@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 
 interface SearchFilterProps {
   showSearch: boolean;

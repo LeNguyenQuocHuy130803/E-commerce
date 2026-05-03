@@ -30,7 +30,7 @@ export const getAllDessertsPaginated = async (
 
     if (!res.ok) {
       const error = await res.json().catch(() => ({ message: res.statusText }))
-      throw new Error(error.message || 'Failed to fetch desserts')
+      throw new Error((error as Error).message || 'Failed to fetch desserts')
     }
 
     const data = await res.json()
@@ -42,8 +42,8 @@ export const getAllDessertsPaginated = async (
     })
 
     return data
-  } catch (error: any) {
-    console.error('❌ [DessertService] Error in getAllDessertsPaginated:', error.message)
+  } catch (error: unknown) {
+    console.error('❌ [DessertService] Error in getAllDessertsPaginated:', (error as Error).message)
     throw error
   }
 }
@@ -62,7 +62,7 @@ export const getDessertById = async (dessertId: number): Promise<Dessert> => {
 
     if (!res.ok) {
       const error = await res.json().catch(() => ({ message: res.statusText }))
-      throw new Error(error.message || 'Failed to fetch dessert')
+      throw new Error((error as Error).message || 'Failed to fetch dessert')
     }
 
     const data = await res.json()
@@ -103,15 +103,15 @@ export const searchDesserts = async (
 
     if (!res.ok) {
       const error = await res.json().catch(() => ({ message: res.statusText }))
-      throw new Error(error.message || 'Failed to search desserts')
+      throw new Error((error as Error).message || 'Failed to search desserts')
     }
 
     const data = await res.json()
     console.log(`✅ [DessertService] Search complete:`, data.totalRecords)
 
     return data
-  } catch (error: any) {
-    console.error('❌ [DessertService] Error in searchDesserts:', error.message)
+  } catch (error: unknown) {
+    console.error('❌ [DessertService] Error in searchDesserts:', (error as Error).message)
     throw error
   }
 }
@@ -153,15 +153,15 @@ export const filterDesserts = async (
 
     if (!res.ok) {
       const error = await res.json().catch(() => ({ message: res.statusText }))
-      throw new Error(error.message || 'Failed to filter desserts')
+      throw new Error((error as Error).message || 'Failed to filter desserts')
     }
 
     const data = await res.json()
     console.log(`✅ [DessertService] Filter complete:`, data.totalRecords)
 
     return data
-  } catch (error: any) {
-    console.error('❌ [DessertService] Error in filterDesserts:', error.message)
+  } catch (error: unknown) {
+    console.error('❌ [DessertService] Error in filterDesserts:', (error as Error).message)
     throw error
   }
 }

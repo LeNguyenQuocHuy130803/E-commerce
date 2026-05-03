@@ -8,6 +8,8 @@
 
 import type { AuthUser } from '@/types/user'
 
+export const AUTH_USER_CHANGE_EVENT = 'auth-user-change'
+
 export interface LoginCredentials {
   email: string
   password: string
@@ -22,7 +24,7 @@ export interface LoginResponse {
   refreshToken: string
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'
+
 
 /**
  * Login user - gọi /api/auth/login (route.ts)
@@ -51,7 +53,7 @@ export async function loginUser(credentials: LoginCredentials): Promise<AuthUser
     if (!response.ok) {
       const error = await response.json()
       console.error(`❌ [authService] Error:`, error)
-      throw new Error(error.message || 'Login failed')
+      throw new Error((error as Error).message || 'Login failed')
     }
 
     // ✅ route.ts trả về user info (tokens ở cookies)
@@ -66,8 +68,8 @@ export async function loginUser(credentials: LoginCredentials): Promise<AuthUser
     })
     
     return data.user
-  } catch (error: any) {
-    const errorMessage = error.message || 'Tên đăng nhập hoặc mật khẩu không chính xác'
+  } catch (error: unknown) {
+    const errorMessage = (error as Error).message || 'Tên đăng nhập hoặc mật khẩu không chính xác'
     console.error(`❌ [authService] Exception:`, errorMessage)
     throw new Error(errorMessage)
   }
@@ -87,6 +89,7 @@ export function saveUserData(user: AuthUser): void {
   if (user.avatar) {
     localStorage.setItem('avatar', user.avatar)
   }
+  window.dispatchEvent(new Event(AUTH_USER_CHANGE_EVENT))
   
   console.log(`💾 [authService] User data saved to localStorage`)
 }
@@ -125,6 +128,7 @@ export async function logout(): Promise<void> {
   localStorage.removeItem('email')
   localStorage.removeItem('roles')
   localStorage.removeItem('avatar')
+  window.dispatchEvent(new Event(AUTH_USER_CHANGE_EVENT))
   
   // ✅ Call logout route để clear cookies
   try {
@@ -148,6 +152,7 @@ export function isAuthenticated(): boolean {
 }
 
 export const authService = {
+  AUTH_USER_CHANGE_EVENT,
   loginUser,
   getCurrentUser,
   saveUserData,

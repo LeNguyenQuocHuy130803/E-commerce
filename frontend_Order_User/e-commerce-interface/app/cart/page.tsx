@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Trash2, ArrowLeft, Minus, Plus } from "lucide-react"
@@ -11,12 +11,15 @@ import { useDebounce } from "@/hooks/useDebounce"
 import { CartService } from "@/service/CartService"
 import { ProductHeader } from "@/app/components/layout/product-header"
 import { Footer } from "@/app/components/layout/footer"
-import { CartItem } from "@/types/cart"
 
 export default function CartPage() {
   const router = useRouter()
-  const { cart, items, itemCount, totalPrice, loading, error, refetch } = useCartQuery()
+  const { cart, items, itemCount, loading, error, refetch } = useCartQuery()
+  const [checkoutError, setCheckoutError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<number | null>(null)
+  
+  // ✅ Track selected items (checkbox)
+  const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set())
   
   // 🔄 Track local quantity changes for optimistic UI update
   const [localQuantities, setLocalQuantities] = useState<Record<number, number>>({})
@@ -40,10 +43,10 @@ export default function CartPage() {
     // ⚠️ KHÔNG khởi tạo availableQuantities từ item.quantity
     // Chỉ set khi API error trả về available quantity
     setAvailableQuantities({})
-  }, [items])
+  }, [items]) // ✅ Only depend on items
 
-  // 📡 Handle update quantity with debounce
-  const handleUpdateQuantity = async (cartItemId: number, newQuantity: number) => {
+  // 📡 Handle update quantity with debounce - MEMOIZED
+  const handleUpdateQuantity = useCallback(async (cartItemId: number, newQuantity: number) => {
     try {
       console.log(`🛒 [CartPage] Updating quantity:`, { cartItemId, newQuantity })
 
@@ -57,8 +60,8 @@ export default function CartPage() {
       
       // 🔄 Refetch cart to get updated data
       await refetch()
-    } catch (err: any) {
-      const errorMsg = err.message || 'Failed to update quantity'
+    } catch (err: unknown) {
+      const errorMsg = (err as Error).message || 'Failed to update quantity'
       console.log(`⚠️ [CartPage] Update failed:`, errorMsg) // ⚠️ Dùng log, không error
 
       // 🔍 Parse error để extract available quantity
@@ -100,13 +103,13 @@ export default function CartPage() {
         return newSet
       })
     }
-  }
+  }, [items, refetch])  // ✅ Now can safely include in dependency array
 
   // ✅ Debounced update function (delay 1.5 seconds)
   const debouncedUpdateQuantity = useDebounce(handleUpdateQuantity, 1500)
 
-  // 👆 Handle minus button click
-  const handleDecreaseQuantity = (cartItemId: number) => {
+  // 👆 Handle minus button click - MEMOIZED
+  const handleDecreaseQuantity = useCallback((cartItemId: number) => {
     setLocalQuantities(prev => {
       const currentQty = prev[cartItemId] || 0
       if (currentQty > 1) {
@@ -116,17 +119,71 @@ export default function CartPage() {
       }
       return prev
     })
-  }
+  }, [debouncedUpdateQuantity])
 
-  // 👆 Handle plus button click
-  const handleIncreaseQuantity = (cartItemId: number) => {
+  // 👆 Handle plus button click - MEMOIZED
+  const handleIncreaseQuantity = useCallback((cartItemId: number) => {
     setLocalQuantities(prev => {
       const currentQty = prev[cartItemId] || 0
       const newQty = currentQty + 1
       debouncedUpdateQuantity(cartItemId, newQty)
       return { ...prev, [cartItemId]: newQty }
     })
-  }
+  }, [debouncedUpdateQuantity])
+
+  // 🛒 Handle checkout - MEMOIZED
+  const handleCheckout = useCallback(async () => {
+    try {
+      setCheckoutError(null)
+      const selectedItemIds = Array.from(selectedItems)
+      
+      console.log('🛒 Navigating to checkout with selected items:', selectedItemIds)
+      
+      // ✅ Pass selected item IDs to checkout page via URL search params
+      const queryParams = new URLSearchParams({
+        selected: JSON.stringify(selectedItemIds)
+      })
+      
+      router.push(`/checkout?${queryParams.toString()}`)
+    } catch (error: unknown) {
+      const errorMsg = (error as Error).message || 'Checkout failed'
+      console.error('❌ Checkout error:', errorMsg)
+      setCheckoutError(errorMsg)
+      
+      // ⏳ Auto-hide error after 5 seconds
+      setTimeout(() => {
+        setCheckoutError(null)
+      }, 5000)
+    }
+  }, [router, selectedItems])
+
+  // ✅ Toggle checkbox - MEMOIZED
+  const handleToggleCheckbox = useCallback((itemId: number) => {
+    setSelectedItems(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId)
+      } else {
+        newSet.add(itemId)
+      }
+      return newSet
+    })
+  }, [])
+
+  // ✅ Select all / Deselect all - MEMOIZED
+  const handleSelectAll = useCallback(() => {
+    if (selectedItems.size === items.length) {
+      // Nếu đã select hết thì deselect tất cả
+      setSelectedItems(new Set())
+    } else {
+      // Ngược lại, select tất cả
+      setSelectedItems(new Set(items.map(item => item.id)))
+    }
+  }, [items, selectedItems.size])
+
+  // 📊 Calculate selected items data
+  const selectedItemsData = items.filter(item => selectedItems.has(item.id))
+  const selectedItemsTotal = selectedItemsData.reduce((sum, item) => sum + (item.priceAtTime * (localQuantities[item.id] || item.quantity)), 0)
 
   if (loading) {
     return (
@@ -199,13 +256,32 @@ export default function CartPage() {
           <div className="pb-32">
             {/* Cart Items - Full Width */}
             <div className="bg-white rounded-lg shadow-md overflow-hidden mb-8">
+              {/* Header: Select All Checkbox */}
+              <div className="grid grid-cols-12 gap-3 items-center p-6 bg-gray-50 border-b border-gray-200">
+                {/* Checkbox - Col 1 */}
+                <label className="col-span-1 flex items-center gap-2 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={items.length > 0 && selectedItems.size === items.length}
+                    onChange={handleSelectAll}
+                    className="w-5 h-5 rounded cursor-pointer" 
+                  />
+                  <span className="text-sm font-semibold text-gray-700">Chọn tất cả</span>
+                </label>
+              </div>
+
               {items.map((item) => (
                 <div
                   key={item.id}
                   className="grid grid-cols-12 gap-3 items-center p-6 border-b border-gray-200 last:border-b-0 hover:bg-gray-50 transition-colors"
                 >
                   {/* Checkbox - Col 1 */}
-                  <input type="checkbox" className="col-span-1 w-5 h-5 rounded" />
+                  <input 
+                    type="checkbox" 
+                    checked={selectedItems.has(item.id)}
+                    onChange={() => handleToggleCheckbox(item.id)}
+                    className="col-span-1 w-5 h-5 rounded cursor-pointer" 
+                  />
                   
                   {/* Product Image + Name - Col 4 */}
                   <div className="col-span-4 flex items-center gap-3">
@@ -289,32 +365,7 @@ export default function CartPage() {
               ))}
             </div>
 
-            {/* Order Summary */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">Order Summary</h3>
 
-              <div className="space-y-3 pb-4 border-b border-gray-200">
-                <div className="flex justify-between text-gray-600">
-                  <span>Subtotal ({itemCount} items)</span>
-                  <span>${(totalPrice / 1000).toFixed(1)}</span>
-                </div>
-                <div className="flex justify-between text-gray-600">
-                  <span>Shipping</span>
-                  <span>Free</span>
-                </div>
-                <div className="flex justify-between text-gray-600">
-                  <span>Tax</span>
-                  <span className="text-sm text-gray-500">Calculated at checkout</span>
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center pt-4">
-                <span className="text-lg font-bold text-gray-900">Total</span>
-                <span className="text-2xl font-bold text-red-500">
-                  ${(totalPrice / 1000).toFixed(1)}
-                </span>
-              </div>
-            </div>
           </div>
         )}
       </div>
@@ -322,16 +373,53 @@ export default function CartPage() {
       {/* Fixed Checkout Section */}
       {itemCount > 0 && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40">
-          <div className="max-w-7xl mx-auto px-4 py-4 flex gap-3">
-            <Link
-              href="/food"
-              className="flex-1 text-center border border-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Continue Shopping
-            </Link>
-            <button className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-lg transition-colors">
-              Mua Hàng
-            </button>
+          <div className="max-w-7xl mx-auto px-4 py-4">
+            {/* Error Message */}
+            {checkoutError && (
+              <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-700 text-sm font-semibold">❌ {checkoutError}</p>
+              </div>
+            )}
+            
+            {/* Proceed to Checkout Label + Buttons Container */}
+            <div className="bg-white border-2 border-red-300 rounded-xl p-4 shadow-md">
+              {/* Order Summary */}
+              <div className="mb-4 pb-4 border-b-2 border-red-200">
+                {selectedItems.size > 0 ? (
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-gray-900">
+                      Tổng mua ({selectedItems.size} {selectedItems.size === 1 ? 'sản phẩm' : 'sản phẩm'}):
+                    </span>
+                    <span className="text-xl font-bold text-red-600">
+                      ${(selectedItemsTotal / 1000).toFixed(1)}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-gray-500">Chọn sản phẩm</span>
+                    <span className="text-xl font-bold text-gray-300">$0.0</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Label */}              
+              {/* Buttons */}
+              <div className="flex gap-3">
+              <Link
+                href="/food"
+                className="flex-1 text-center border border-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Continue Shopping
+              </Link>
+              <button 
+                onClick={handleCheckout}
+                disabled={selectedItems.size === 0}
+                className="flex-1 bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+              >
+                Proceed to Checkout
+              </button>
+            </div>
+            </div>
           </div>
         </div>
       )}

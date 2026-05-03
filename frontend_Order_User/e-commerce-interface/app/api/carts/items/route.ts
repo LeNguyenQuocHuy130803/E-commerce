@@ -73,15 +73,15 @@ export async function POST(req: NextRequest) {
 
     // 4️⃣ Nếu backend trả lỗi
     if (!backendRes.ok) {
-      let error: any = {}
+      let errorData: unknown = {}
       try {
-        error = await backendRes.json()
+        errorData = await backendRes.json()
       } catch {
-        error = { message: backendRes.statusText }
+        errorData = { message: backendRes.statusText }
       }
-      console.error(`❌ [/api/carts/items] Backend error:`, error)
+      console.error(`❌ [/api/carts/items] Backend error:`, errorData)
       return NextResponse.json(
-        { message: error.message || 'Failed to add to cart' },
+        { message: (errorData as Error).message || 'Failed to add to cart' },
         { status: backendRes.status }
       )
     }
@@ -96,10 +96,10 @@ export async function POST(req: NextRequest) {
     })
 
     return NextResponse.json(cartData, { status: 200 })
-  } catch (error: any) {
-    console.error('❌ [/api/carts/items] Error:', error.message)
+  } catch (error: unknown) {
+    console.error('❌ [/api/carts/items] Error:', (error as Error).message)
     return NextResponse.json(
-      { message: 'Failed to add to cart: ' + error.message },
+      { message: 'Failed to add to cart: ' + (error as Error).message },
       { status: 500 }
     )
   }
@@ -157,15 +157,15 @@ export async function PATCH(req: NextRequest) {
 
     // 3️⃣ Nếu backend trả lỗi
     if (!backendRes.ok) {
-      let error: any = {}
+      let errorData: unknown = {}
       try {
-        error = await backendRes.json()
+        errorData = await backendRes.json()
       } catch {
-        error = { message: backendRes.statusText }
+        errorData = { message: backendRes.statusText }
       }
-      console.error(`❌ [/api/carts/items] PATCH Backend error:`, error)
+      console.error(`❌ [/api/carts/items] PATCH Backend error:`, errorData)
       return NextResponse.json(
-        { message: error.message || 'Failed to update cart item quantity' },
+        { message: (errorData as Error).message || 'Failed to update cart item quantity' },
         { status: backendRes.status }
       )
     }
@@ -179,10 +179,10 @@ export async function PATCH(req: NextRequest) {
     })
 
     return NextResponse.json(cartData, { status: 200 })
-  } catch (error: any) {
-    console.error('❌ [/api/carts/items] PATCH Error:', error.message)
+  } catch (error: unknown) {
+    console.error('❌ [/api/carts/items] PATCH Error:', (error as Error).message)
     return NextResponse.json(
-      { message: 'Failed to update quantity: ' + error.message },
+      { message: 'Failed to update quantity: ' + (error as Error).message },
       { status: 500 }
     )
   }

@@ -7,7 +7,7 @@
  */
 
 import { apiFetch } from '@/lib/api/api-client-refresh'
-import { AddToCartRequest, CartResponse } from '@/types/cart'
+import { AddToCartRequest, CartResponse, ProductType } from '@/types/cart'
 
 /**
  * Lấy giỏ hàng của user hiện tại
@@ -36,8 +36,8 @@ export async function getCart(): Promise<CartResponse> {
     })
 
     return cartData
-  } catch (error: any) {
-    const errorMsg = error.message || 'Failed to get cart'
+  } catch (error: unknown) {
+    const errorMsg = (error as Error).message || 'Failed to get cart'
     console.log(`⚠️ [CartService] Get cart failed:`, {
       message: errorMsg,
       error,
@@ -54,7 +54,7 @@ export async function getCart(): Promise<CartResponse> {
  * @returns Cart data
  */
 export async function addProductToCart(
-  productType: string,
+  productType: ProductType,
   productId: number,
   quantity: number = 1
 ): Promise<CartResponse> {
@@ -98,8 +98,8 @@ export async function addProductToCart(
     })
 
     return cartData
-  } catch (error: any) {
-    const errorMsg = error.message || 'Failed to add to cart'
+  } catch (error: unknown) {
+    const errorMsg = (error as Error).message || 'Failed to add to cart'
     console.log(`⚠️ [CartService] Add to cart failed:`, {
       message: errorMsg,
       error,
@@ -147,8 +147,8 @@ export async function updateCartItemQuantity(
     })
 
     return cartData
-  } catch (error: any) {
-    const errorMsg = error.message || 'Failed to update quantity'
+  } catch (error: unknown) {
+    const errorMsg = (error as Error).message || 'Failed to update quantity'
     console.log(`⚠️ [CartService] Update quantity failed:`, {
       message: errorMsg,
       error,

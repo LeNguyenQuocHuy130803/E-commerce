@@ -15,6 +15,7 @@ public class AddressResponseDto {
     private AddressType type;
     private String address;
     private Boolean isDefault;
+    private String phoneNumber;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -95,8 +95,8 @@ export function ChangePasswordForm({ onSuccess }: ChangePasswordFormProps) {
         setStep(2)
         setSuccessMessage('')
       }, 2000)
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.message || err.message || 'Failed to send OTP'
+    } catch (err: unknown) {
+      const errorMsg = err.response?.data?.message || (err as Error).message || 'Failed to send OTP'
       setError(errorMsg)
       console.error('Error requesting password reset:', errorMsg)
     } finally {
@@ -120,8 +120,8 @@ export function ChangePasswordForm({ onSuccess }: ChangePasswordFormProps) {
         setEmail('')
         setSuccessMessage('')
       }, 2000)
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.message || err.message || 'Failed to change password'
+    } catch (err: unknown) {
+      const errorMsg = err.response?.data?.message || (err as Error).message || 'Failed to change password'
       setError(errorMsg)
       console.error('Error changing password:', errorMsg)
     } finally {
@@ -138,8 +138,8 @@ export function ChangePasswordForm({ onSuccess }: ChangePasswordFormProps) {
       await requestPasswordReset(email)
       setSuccessMessage('OTP resent successfully!')
       setResendCountdown(60)
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.message || err.message || 'Failed to resend OTP'
+    } catch (err: unknown) {
+      const errorMsg = err.response?.data?.message || (err as Error).message || 'Failed to resend OTP'
       setError(errorMsg)
     } finally {
       setIsLoading(false)

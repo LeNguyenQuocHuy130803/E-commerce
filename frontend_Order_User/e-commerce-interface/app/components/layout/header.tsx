@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Menu, X, ShoppingCart, Search, User } from "lucide-react"
-import { Button } from "../ui/button"
 import { SearchFilter } from "../search_filter"
 import { useAuth } from "@/hooks/useAuth"
 import { useUserDetail } from "@/lib/api/queries"
@@ -23,7 +22,7 @@ export function Header() {
 
   // ✅ Fetch cart count từ API (chỉ khi authenticated)
   // ⚠️ Nếu chưa login, sẽ không fetch để tránh 401 error
-  const { itemCount, refetch: refetchCart } = useCartQuery(isAuthenticated)
+  const { itemCount } = useCartQuery(isAuthenticated)
 
   useEffect(() => {
     const handleScroll = () => {

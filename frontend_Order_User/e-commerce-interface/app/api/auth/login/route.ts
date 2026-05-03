@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
       const error = await backendRes.json()
       console.error(`❌ Backend error:`, error)
       return NextResponse.json(
-        { message: error.message || 'Login failed' },
+        { message: (error as Error).message || 'Login failed' },
         { status: backendRes.status }
       )
     }
@@ -111,11 +111,11 @@ export async function POST(req: NextRequest) {
     // Lần follow-up request: Browser tự động gửi cookies (còn frontend không biết)
     console.log(`✅ [login] HTTP-only cookies set, returning user info`)
     return res
-  } catch (error: any) {
+  } catch (error: unknown) {
     // ❌ Nếu có lỗi gì (network, JSON parse, etc.)
     console.error('Login error:', error)
     return NextResponse.json(
-      { message: 'Login failed: ' + error.message },
+      { message: 'Login failed: ' + (error as Error).message },
       { status: 500 }
     )
   }

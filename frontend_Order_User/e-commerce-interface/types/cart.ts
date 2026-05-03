@@ -2,15 +2,24 @@
  * Cart Types and Interfaces
  */
 
+export const PRODUCT_TYPES = {
+  FOOD: 'FOOD',
+  DRINK: 'DRINK',
+  FRESH: 'FRESH',
+  DESSERT: 'DESSERT',
+} as const
+
+export type ProductType = typeof PRODUCT_TYPES[keyof typeof PRODUCT_TYPES]
+
 export interface AddToCartRequest {
-  productType: string  // 'FOOD' | 'DRINK' | 'FRESH'
+  productType: ProductType
   productId: number
   quantity: number
 }
 
 export interface CartItem {
   id: number
-  productType: string
+  productType: ProductType
   productId: number
   productName: string
   imageUrl: string

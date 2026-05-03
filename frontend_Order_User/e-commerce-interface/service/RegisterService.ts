@@ -1,4 +1,3 @@
-import { RegisterFormData } from "@/app/(auth)/register-page/register.schema"
 
 // ✅ Interface for API request - only required fields
 export interface RegisterRequest {
@@ -8,7 +7,7 @@ export interface RegisterRequest {
   phoneNumber: string
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+
 
 export async function registerUser(data: RegisterRequest) {
   try {
@@ -30,7 +29,7 @@ export async function registerUser(data: RegisterRequest) {
     }
 
     return responseData.user
-  } catch (error: any) {
-    throw new Error(error.message || 'Registration request failed')
+  } catch (error: unknown) {
+    throw new Error((error as Error).message || 'Registration request failed')
   }
 }

@@ -11,6 +11,7 @@ import { Footer } from '@/app/components/layout/footer'
 import { useUserDetail, useUpdateUserMutation } from '@/lib/api/queries'
 import { ProfileEditForm } from './ProfileEditForm'
 import { ChangePasswordForm } from './ChangePasswordForm'
+import { OrdersTab } from './OrdersTab'
 import type { UserDetail } from '@/types/user'
 
 export default function AccountPage() {
@@ -45,8 +46,8 @@ export default function AccountPage() {
       // ✅ Force re-render avatar by incrementing refresh key
       setAvatarRefresh(prev => prev + 1)
       console.log('✅ [AccountPage] User updated successfully')
-    } catch (err: any) {
-      console.error('❌ [AccountPage] Error updating profile:', err.message)
+    } catch (err: unknown) {
+      console.error('❌ [AccountPage] Error updating profile:', (err as Error).message)
     }
   }
 
@@ -188,7 +189,7 @@ export default function AccountPage() {
                 {/* Query Error State */}
                 {queryError && !isLoadingProfile && (
                   <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-                    <p className="text-red-700">❌ {(queryError as any)?.message || 'Failed to load profile'}</p>
+                    <p className="text-red-700">❌ {(queryError as Error)?.message || 'Failed to load profile'}</p>
                   </div>
                 )}
 
@@ -269,11 +270,7 @@ export default function AccountPage() {
                 )}
 
                 {activeTab === 'orders' && (
-                  <div className="text-center py-12">
-                    <ShoppingBag size={48} className="mx-auto text-gray-300 mb-4" />
-                    <h3 className="text-xl font-semibold text-gray-500">No orders yet</h3>
-                    <p className="text-gray-400 mt-2">Start shopping to see your orders here</p>
-                  </div>
+                  <OrdersTab />
                 )}
 
                 {activeTab === 'addresses' && (

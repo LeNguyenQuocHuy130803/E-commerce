@@ -15,6 +15,7 @@ let isRefreshing = false
 // Khi token refresh xong, sẽ thông báo cho tất cả request này
 let failedRequestsQueue: Array<{
   resolve: (token: string) => void
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   reject: (error: any) => void
 }> = []
 
@@ -27,6 +28,7 @@ let failedRequestsQueue: Array<{
  * Nếu refresh thất bại:
  *   - reject() được gọi → logout user
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const processQueue = (error: any, token: string | null = null) => {
   // 🔄 Duyệt qua tất cả request trong queue
   failedRequestsQueue.forEach(request => {
@@ -177,6 +179,7 @@ export async function GET(url: string, options: RequestInit = {}) {
  * Cách dùng:
  *   const res = await POST('/api/users', { name: 'John' })
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function POST(url: string, data?: any, options: RequestInit = {}) {
   return apiFetch(url, {
     ...options,
@@ -195,6 +198,7 @@ export async function POST(url: string, data?: any, options: RequestInit = {}) {
  * Cách dùng:
  *   const res = await PUT('/api/users/1', { name: 'Jane' })
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function PUT(url: string, data?: any, options: RequestInit = {}) {
   return apiFetch(url, {
     ...options,

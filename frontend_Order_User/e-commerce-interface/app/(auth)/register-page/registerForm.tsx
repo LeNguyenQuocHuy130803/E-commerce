@@ -49,8 +49,8 @@ export default function RegisterForm() {
       setTimeout(() => {
         router.push('/dashboard-employers')
       }, 2000)
-    } catch (err: any) {
-      setError(err.message || 'Registration failed. Please try again.')
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Registration failed. Please try again.')
     } finally {
       setLoading(false)
     }

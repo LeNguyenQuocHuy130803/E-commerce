@@ -96,7 +96,7 @@
 //     }
 
 //     return response.data.accessToken
-//   } catch (error: any) {
+//   } catch (error: unknown) {
 //     console.error('Failed to refresh token:', error)
 //     // Nếu refresh token không hợp lệ (401/403), xóa storage và chuyển hướng
 //     if (error.response?.status === 401 || error.response?.status === 403) {

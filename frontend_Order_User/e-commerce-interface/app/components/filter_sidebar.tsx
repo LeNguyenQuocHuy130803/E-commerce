@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Filter, SlidersHorizontal, Star } from 'lucide-react';
-import { Button } from '../components/ui/button';
+import { Button } from './ui/button';
 import type { FilterParams } from '@/types/drink';
 
 interface FilterSidebarProps {
@@ -18,7 +18,9 @@ export function FilterSidebar({ onFilterChange, initialFilters, categories }: Fi
 
   useEffect(() => {
     if (initialFilters) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedCategories(initialFilters.categories || []);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedFeatured(initialFilters.featured || false);
     }
   }, [initialFilters]);

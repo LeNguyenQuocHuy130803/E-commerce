@@ -106,7 +106,7 @@
 // }
 import React from 'react'
 
-type Props = {}
+type Props = Record<string, never>
 
 export default function page({}: Props) {
   return (

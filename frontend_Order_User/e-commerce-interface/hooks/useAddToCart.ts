@@ -2,6 +2,8 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { CartService } from "@/service/CartService"
+import { CART_QUERY_KEY } from "@/hooks/useCartQuery"
+import type { ProductType } from "@/types/cart"
 
 export function useAddToCart() {
   const queryClient = useQueryClient()
@@ -12,7 +14,7 @@ export function useAddToCart() {
       productId,
       quantity,
     }: {
-      productType: string
+      productType: ProductType
       productId: number
       quantity: number
     }) => {
@@ -20,7 +22,7 @@ export function useAddToCart() {
     },
     onSuccess: () => {
       // ✅ Tự động invalidate và refetch cart query khi add thành công
-      queryClient.invalidateQueries({ queryKey: ["cart"] })
+      queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY })
     },
   })
 

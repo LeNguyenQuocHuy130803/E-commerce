@@ -40,6 +40,7 @@ const processQueue = (error: AxiosError | null) => {
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const originalRequest = error.config as any
 
     // Nếu lỗi không phải 401 hoặc đã retry rồi → throw error

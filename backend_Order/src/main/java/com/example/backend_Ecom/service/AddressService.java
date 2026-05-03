@@ -136,6 +136,20 @@ public class AddressService {
     }
 
     /**
+     * Get default address (type = HOME) for user
+     */
+    public AddressResponseDto getDefaultAddress(Long userId) {  // Xác minh user tồn tại, Tìm address có type = HOME và isDefault = true, Trả về exception nếu không tìm thấy
+        // Verify user exists
+        if (!userJpaRepository.existsById(userId)) {
+            throw new AppException(ErrorCode.USER_NOT_FOUND, "User not found with ID: " + userId);
+        }
+
+        Address address = addressRepository.findByUserIdAndTypeAndIsDefaultTrue(userId, AddressType.HOME)
+                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "No default HOME address found for user"));
+        return mapToDto(address);
+    }
+
+    /**
      * Convert Address entity to DTO
      */
     private AddressResponseDto mapToDto(Address address) {
@@ -146,6 +160,7 @@ public class AddressService {
                 .isDefault(address.getIsDefault())
                 .createdAt(address.getCreatedAt())
                 .updatedAt(address.getUpdatedAt())
+                .phoneNumber(address.getPhoneNumber())
                 .build();
     }
 }

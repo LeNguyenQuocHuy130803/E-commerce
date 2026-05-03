@@ -31,14 +31,14 @@ export const getAllFreshPaginated = async (
 
     if (!res.ok) {
       const error = await res.json().catch(() => ({ message: res.statusText }));
-      throw new Error(error.message || "Failed to fetch fresh products");
+      throw new Error((error as Error).message || "Failed to fetch fresh products");
     }
 
     const data = await res.json();
     console.log("✅ getAllFreshPaginated response:", data);
     return data;
-  } catch (error: any) {
-    console.error("❌ Error in getAllFreshPaginated:", error.message);
+  } catch (error: unknown) {
+    console.error("❌ Error in getAllFreshPaginated:", (error as Error).message);
     throw error;
   }
 };
@@ -57,14 +57,14 @@ export const getFreshById = async (id: number): Promise<Fresh> => {
 
     if (!res.ok) {
       const error = await res.json().catch(() => ({ message: res.statusText }));
-      throw new Error(error.message || "Failed to fetch fresh product");
+      throw new Error((error as Error).message || "Failed to fetch fresh product");
     }
 
     const data = await res.json();
     console.log("✅ getFreshById response:", data);
     return data;
-  } catch (error: any) {
-    console.error("❌ Error in getFreshById:", error.message);
+  } catch (error: unknown) {
+    console.error("❌ Error in getFreshById:", (error as Error).message);
     throw error;
   }
 };
@@ -97,14 +97,14 @@ export const searchFresh = async (
 
     if (!res.ok) {
       const error = await res.json().catch(() => ({ message: res.statusText }));
-      throw new Error(error.message || "Failed to search fresh products");
+      throw new Error((error as Error).message || "Failed to search fresh products");
     }
 
     const data = await res.json();
     console.log("✅ searchFresh response:", data);
     return data;
-  } catch (error: any) {
-    console.error("❌ Error in searchFresh:", error.message);
+  } catch (error: unknown) {
+    console.error("❌ Error in searchFresh:", (error as Error).message);
     throw error;
   }
 };
@@ -146,14 +146,14 @@ export const filterFresh = async (
 
     if (!res.ok) {
       const error = await res.json().catch(() => ({ message: res.statusText }));
-      throw new Error(error.message || "Failed to filter fresh products");
+      throw new Error((error as Error).message || "Failed to filter fresh products");
     }
 
     const data = await res.json();
     console.log("✅ filterFresh response:", data);
     return data;
-  } catch (error: any) {
-    console.error("❌ Error in filterFresh:", error.message);
+  } catch (error: unknown) {
+    console.error("❌ Error in filterFresh:", (error as Error).message);
     throw error;
   }
 };

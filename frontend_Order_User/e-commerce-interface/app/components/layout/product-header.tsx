@@ -2,13 +2,20 @@
 
 import Link from "next/link"
 import { useState } from "react"
-import { ShoppingCart, Menu, X, Search, User } from "lucide-react"
+import { usePathname } from "next/navigation"
+import { ShoppingCart, Menu, X, Search } from "lucide-react"
 import { Button } from "@/app/components/ui/button"
 import { useCartQuery } from "@/hooks/useCartQuery"
+import { useAuth } from "@/hooks/useAuth"
 
 export function ProductHeader() {
+  const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const { itemCount } = useCartQuery()
+  const { isAuthenticated } = useAuth()
+  const { itemCount } = useCartQuery(isAuthenticated)
+  
+  // ✅ Ẩn icon giỏ hàng khi ở trang cart, checkout
+  const isCartPage = pathname === '/cart' || pathname === '/checkout'
 
   return (
     <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
@@ -55,19 +62,23 @@ export function ProductHeader() {
 
         {/* Actions */}
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" className="hidden sm:flex">
-            <Search className="h-5 w-5" />
-          </Button>
-          <Link href="/cart">
-            <Button variant="ghost" size="icon" className="relative">
-              <ShoppingCart className="h-5 w-5" />
-              {itemCount > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#ff5528] text-xs text-white font-bold">
-                  {itemCount}
-                </span>
-              )}
+          {!isCartPage && (
+            <Button variant="ghost" size="icon" className="hidden sm:flex">
+              <Search className="h-5 w-5" />
             </Button>
-          </Link>
+          )}
+          {!isCartPage && (
+            <Link href="/cart">
+              <Button variant="ghost" size="icon" className="relative">
+                <ShoppingCart className="h-5 w-5" />
+                {itemCount > 0 && (
+                  <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#ff5528] text-xs text-white font-bold">
+                    {itemCount}
+                  </span>
+                )}
+              </Button>
+            </Link>
+          )}
           <Button
             variant="ghost"
             size="icon"

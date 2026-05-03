@@ -46,15 +46,15 @@ export async function GET(req: NextRequest) {
 
     // 3️⃣ Nếu backend trả lỗi
     if (!backendRes.ok) {
-      let error: any = {}
+      let errorData: unknown = {}
       try {
-        error = await backendRes.json()
+        errorData = await backendRes.json()
       } catch {
-        error = { message: backendRes.statusText }
+        errorData = { message: backendRes.statusText }
       }
-      console.error(`❌ [/api/carts GET] Backend error:`, error)
+      console.error(`❌ [/api/carts GET] Backend error:`, errorData)
       return NextResponse.json(
-        { message: error.message || 'Failed to get cart' },
+        { message: (errorData as Error).message || 'Failed to get cart' },
         { status: backendRes.status }
       )
     }
@@ -69,10 +69,10 @@ export async function GET(req: NextRequest) {
     })
 
     return NextResponse.json(cartData, { status: 200 })
-  } catch (error: any) {
-    console.error('❌ [/api/carts GET] Error:', error.message)
+  } catch (error: unknown) {
+    console.error('❌ [/api/carts GET] Error:', (error as Error).message)
     return NextResponse.json(
-      { message: 'Failed to get cart: ' + error.message },
+      { message: 'Failed to get cart: ' + (error as Error).message },
       { status: 500 }
     )
   }

@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { Header } from "./components/layout/header";
 import MainSection from "./components/main_banner";
 import FoodCategory from "./components/home_body";

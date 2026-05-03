@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 
 /**
  * API Route: POST /api/auth/logout
@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
  * ✅ Logs user out
  */
 
-export async function POST(req: NextRequest) {
+export async function POST() {
   try {
     console.log('🚪 [logout] Clearing cookies...')
 
@@ -22,10 +22,10 @@ export async function POST(req: NextRequest) {
     console.log('✅ [logout] Cookies cleared')
 
     return res
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Logout error:', error)
     return NextResponse.json(
-      { message: 'Logout failed: ' + error.message },
+      { message: 'Logout failed: ' + (error as Error).message },
       { status: 500 }
     )
   }

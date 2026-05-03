@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     if (!backendRes.ok) {
       const error = await backendRes.json()
       return NextResponse.json(
-        { message: error.message || 'Registration failed' },
+        { message: (error as Error).message || 'Registration failed' },
         { status: backendRes.status }
       )
     }
@@ -76,10 +76,10 @@ export async function POST(req: NextRequest) {
     }
 
     return res
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Register error:', error)
     return NextResponse.json(
-      { message: 'Registration failed: ' + error.message },
+      { message: 'Registration failed: ' + (error as Error).message },
       { status: 500 }
     )
   }

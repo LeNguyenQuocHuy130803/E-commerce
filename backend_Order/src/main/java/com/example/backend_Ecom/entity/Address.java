@@ -6,6 +6,7 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
+import jakarta.validation.constraints.Pattern;
 
 @Getter
 @Setter
@@ -41,4 +42,10 @@ public class Address {
     @UpdateTimestamp
     @Column(nullable = false)
     private LocalDateTime updatedAt;
+
+    @Pattern(
+            regexp = "^(\\+84|0)[0-9]{9}$",
+            message = "Số điện thoại không hợp lệ"
+    )
+    private String phoneNumber;
 }

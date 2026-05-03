@@ -32,10 +32,6 @@ const itemVariants: Variants = {
   },
 };
 
-// 2. Helper cho tọa độ bay lơ lửng (Fix lỗi TypeScript animate)
-const floatingY = (yMove: number): TargetAndTransition => ({
-  y: [0, yMove, 0],
-});
 
 export default function MainSection() {
   return (
@@ -56,12 +52,12 @@ export default function MainSection() {
 
         {/* Các hạt trang trí bay lơ lửng - Đã tách transition để fix lỗi */}
         <motion.div 
-          animate={floatingY(-30)}
+          animate={{ y: [0, -30, 0] }}
           transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
           className="absolute top-[20%] right-[15%] w-4 h-4 bg-[#ff5528] rounded-full opacity-20 blur-sm" 
         />
         <motion.div 
-          animate={floatingY(40)}
+          animate={{ y: [0, 40, 0] }}
           transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
           className="absolute bottom-[30%] left-[10%] w-6 h-6 bg-[#ffb936] rounded-full opacity-10 blur-sm" 
         />
@@ -161,7 +157,7 @@ export default function MainSection() {
 
               {/* Badge Giá $9.99 */}
               <motion.div 
-                animate={floatingY(-20)}
+                animate={{ y: [0, 13, 0] }}
                 transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
                 className="absolute -right-4 top-10 bg-[#ffb936] rounded-full w-28 h-28 lg:w-36 lg:h-36 flex flex-col items-center justify-center shadow-2xl border-[6px] border-[#0d0d0d] z-20"
               >
@@ -171,7 +167,10 @@ export default function MainSection() {
 
               {/* Badge Giảm giá 20% */}
               <motion.div 
-                animate={floatingY(15)}
+                animate={{ 
+  x: [0, 20, 0], 
+  y: [0, -10, 0] 
+}}
                 transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
                 className="absolute -left-8 bottom-10 bg-white rounded-[2rem] px-8 py-5 shadow-2xl z-20 border-b-8 border-gray-100"
               >

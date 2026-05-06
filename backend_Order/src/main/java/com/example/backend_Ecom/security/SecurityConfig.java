@@ -40,12 +40,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/public/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         
-                        // ✅ ADDRESS ENDPOINTS - Ownership check via @PreAuthorize
+                        // ✅ ADDRESS ENDPOINTS - CẦN AUTHENTICATION
                         .requestMatchers("/api/users/addresses/**").authenticated()
                                                 
                         // ✅ PUBLIC ENDPOINTS
                         .requestMatchers("/api/users/**").permitAll()
-                        .requestMatchers("/api/addresses/**", "/api/foods/**", "/api/drinks/**", "/api/desserts/**").permitAll()
+                        .requestMatchers( "/api/foods/**", "/api/drinks/**", "/api/desserts/**").permitAll()
                         
                         // ✅ CART, ORDER, PAYMENT - CẦN AUTHENTICATION
                         .requestMatchers("/api/carts/**").authenticated()

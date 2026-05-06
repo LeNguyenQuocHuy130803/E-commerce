@@ -13,6 +13,7 @@ export const CART_QUERY_KEY = ["cart"] as const
  * ✅ Không refetch khi focus window
  */
 export function useCartQuery(isAuthenticated?: boolean) {
+  const canFetchCart = isAuthenticated !== false
   const { data, isLoading, error, refetch, isRefetching } = useQuery<CartData>({
     queryKey: CART_QUERY_KEY,
     queryFn: async () => {
@@ -30,19 +31,21 @@ export function useCartQuery(isAuthenticated?: boolean) {
       return cartData
     },
     // ✅ Luôn enable fetch - apiFetch sẽ auto-refresh token khi 401
-    enabled: isAuthenticated !== false,
+    enabled: canFetchCart,
     staleTime: 1000 * 60 * 5, // Cache 5 phút
     refetchOnWindowFocus: false,
     retry: 2, // 🔄 Retry 2 lần nếu fail (cho token refresh time)
   })
 
+  const cartItems = canFetchCart ? data?.items || [] : []
+
   return {
-    cart: data,
-    items: data?.items || [],
-    itemCount: data?.items?.length || 0,
-    totalPrice: data?.totalPrice || 0,
-    loading: isLoading,
-    error: error?.message || null,
+    cart: canFetchCart ? data : undefined,
+    items: cartItems,
+    itemCount: cartItems.length,
+    totalPrice: canFetchCart ? data?.totalPrice || 0 : 0,
+    loading: canFetchCart ? isLoading : false,
+    error: canFetchCart ? error?.message || null : null,
     refetch,
     isRefetching,
   }

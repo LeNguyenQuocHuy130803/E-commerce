@@ -1,18 +1,6 @@
 package com.example.backend_Ecom.service;
 
-import com.example.backend_Ecom.dto.LoginRequestDto;
-import com.example.backend_Ecom.dto.LoginResponseDto;
-import com.example.backend_Ecom.dto.RegisterRequestDto;
-import com.example.backend_Ecom.dto.RegisterResponseDto;
-import com.example.backend_Ecom.dto.RefreshTokenRequestDto;
-import com.example.backend_Ecom.dto.RefreshTokenResponseDto;
-import com.example.backend_Ecom.dto.UserResponseDto;
-import com.example.backend_Ecom.dto.UserUpdateRequestDto;
-import com.example.backend_Ecom.dto.PaginatedUserResponseDto;
-import com.example.backend_Ecom.dto.VerifyEmailRequestDto;
-import com.example.backend_Ecom.dto.AddressResponseDto;
-import com.example.backend_Ecom.dto.ForgotPasswordRequestDto;
-import com.example.backend_Ecom.dto.ResetPasswordRequestDto;
+import com.example.backend_Ecom.dto.*;
 import com.example.backend_Ecom.entity.User;
 import com.example.backend_Ecom.entity.VerificationToken;
 import com.example.backend_Ecom.enums.UserStatus;
@@ -583,7 +571,43 @@ public class UserService {
         return mapToDto(user);
     }
 
+//change password
+    /**
+     * Change user password and return a simple success response
+     */
+    public ChangePassResponseDto changePassword(Long id, ChangePassRequestDto request) {
+        log.info("Changing password for user ID: {}", id);
 
+        // 1. Tìm user
+        User user = userJpaRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Change password failed: User not found with ID: {}", id);
+                    return new AppException(ErrorCode.USER_NOT_FOUND, "User not found with ID: " + id);
+                });
+
+        // 2. Kiểm tra mật khẩu cũ (BCrypt so sánh)
+        if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+            log.warn("Change password failed: Incorrect old password for user: {}", user.getEmail());
+            throw new AppException(ErrorCode.INVALID_CREDENTIALS, "Mật khẩu cũ không chính xác");
+        }
+
+        // 3. Kiểm tra mật khẩu mới không được trùng mật khẩu cũ (Bảo mật nâng cao)
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            throw new AppException(ErrorCode.INVALID_REQUEST, "Mật khẩu mới không được trùng với mật khẩu cũ");
+        }
+
+        // 4. Mã hóa mật khẩu mới và lưu
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+
+        // Reset các thông số lockout nếu cần (như logic resetPassword mi đã viết)
+        user.setIsAccountLocked(false);
+        user.setFailedLoginAttempts(0);
+
+        user = userJpaRepository.save(user);
+        log.info("Password changed successfully for user: {}", user.getEmail());
+
+        return new ChangePassResponseDto("Đổi mật khẩu thành công", true);
+    }
 
     /**
      * Map User entity to UserResponseDto

@@ -1,6 +1,7 @@
 
 import apiClient from '@/lib/apiClient'
 import type { UserDetail } from '@/types/user'
+import { apiFetch } from '@/lib/api/api-client-refresh'
 
 /**
  * UserService - Lấy và quản lí user data
@@ -73,48 +74,13 @@ export const updateUser = async (userId: number, data: Partial<UserDetail>, avat
   }
 }
 
-export const userService = {
-  getUserById,
-  updateUser,
-}
-
-/**
- * Change user password
- * @param userId - User ID
- * @param currentPassword - Current password
- * @param newPassword - New password
- */
-export const changePassword = async (
-  userId: number,
-  currentPassword: string,
-  newPassword: string
-): Promise<{ message: string }> => {
-  try {
-    console.log(`🔐 [userService] Changing password for user ID: ${userId}`)
-
-    const res = await apiClient.post<{ message: string }>(
-      `/users/${userId}/change-password`,
-      {
-        currentPassword,
-        newPassword,
-      }
-    )
-
-    console.log(`✅ [userService] Password changed successfully:`, res.data.message)
-    return res.data
-  } catch (error) {
-    console.error('❌ [userService] Error in changePassword:', error)
-    throw error
-  }
-}
-
 /**
  * Request password reset - send OTP to email
  * @param email - User email
  */
-export const requestPasswordReset = async (email: string): Promise<{ message: string }> => {
+export const handle_forgotPassWord = async (email: string): Promise<{ message: string }> => {
   try {
-    console.log(`📧 [userService] Requesting password reset for email: ${email}`)
+    console.log(`📧 [userService] clicking forgot password for email: ${email}`)
 
     const res = await apiClient.post<{ message: string }>(
       `/auth/forgot-password`,
@@ -124,7 +90,7 @@ export const requestPasswordReset = async (email: string): Promise<{ message: st
     console.log(`✅ [userService] OTP sent to email:`, res.data.message)
     return res.data
   } catch (error) {
-    console.error('❌ [userService] Error in requestPasswordReset:', error)
+    console.error('❌ [userService] Error in handle_forgotPassWord:', error)
     throw error
   }
 }
@@ -158,4 +124,38 @@ export const resetPassword = async (
     console.error('❌ [userService] Error in resetPassword:', error)
     throw error
   }
+}
+
+export const changePassword = async (
+  oldPassword: string,
+  newPassword: string
+): Promise<{ message: string; success?: boolean }> => {
+  try {
+    console.log('🔐 [userService] Changing password')
+
+    const res = await apiFetch('/api/auth/change-password', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ oldPassword, newPassword }),
+    })
+
+    if (!res.ok) {
+      const errorData = await res.json()
+      throw new Error(errorData.message || 'Change password failed')
+    }
+
+    const data = await res.json()
+    console.log('✅ [userService] Password changed successfully:', data.message)
+    return data
+  } catch (error) {
+    // Error will be handled and displayed as toast in component
+    // No console.error here to avoid console pollution
+    throw error
+  }
+}
+
+export const userService = {
+  getUserById,
+  updateUser,
+  changePassword,
 }

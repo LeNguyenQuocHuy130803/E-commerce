@@ -84,15 +84,15 @@ public class BlogController {
     }
 
     /**
-     * PUT /api/blogs/{id}
-     * Update an existing blog post
-     * Frontend: Update bài viết với file upload lựa chọn
+     * PATCH /api/blogs/{id}
+     * Partial update an existing blog post
+     * Frontend: Update bài viết với file upload lựa chọn (partial fields accepted)
      */
     @Operation(summary = "Update blog post")
     @PatchMapping("/{id}")
     public ResponseEntity<BlogResponseDto> updateBlog(
             @Parameter(description = "Blog post ID") @PathVariable @Min(1) Long id,
-            @Valid @ModelAttribute BlogRequestDto request) {
+            @ModelAttribute com.example.backend_Ecom.dto.BlogUpdateRequestDto request) {
         return ResponseEntity.ok(blogService.updateBlog(id, request));
     }
 

@@ -1,23 +1,12 @@
 package com.example.backend_Ecom.controller;
 
-import com.example.backend_Ecom.dto.LoginRequestDto;
-import com.example.backend_Ecom.dto.LoginResponseDto;
-import com.example.backend_Ecom.dto.RegisterRequestDto;
-import com.example.backend_Ecom.dto.RegisterResponseDto;
-import com.example.backend_Ecom.dto.RefreshTokenRequestDto;
-import com.example.backend_Ecom.dto.RefreshTokenResponseDto;
-import com.example.backend_Ecom.dto.VerifyEmailRequestDto;
-import com.example.backend_Ecom.dto.UserResponseDto;
-import com.example.backend_Ecom.dto.ForgotPasswordRequestDto;
-import com.example.backend_Ecom.dto.ResetPasswordRequestDto;
-import com.example.backend_Ecom.dto.MessageResponseDto;
+import com.example.backend_Ecom.dto.*;
+import com.example.backend_Ecom.security.UserPrincipal;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import lombok.RequiredArgsConstructor;
 import com.example.backend_Ecom.service.UserService;
@@ -90,5 +79,22 @@ public class AuthController {
                 .success(true)
                 .message("Password has been reset successfully")
                 .build());
+    }
+
+    @PatchMapping("/change-password")
+    public ResponseEntity<ChangePassResponseDto> changePassword(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody ChangePassRequestDto request
+    )
+    {
+//        if (principal == null) {
+//            throw new com.example.backend_Ecom.exception.AppException(
+//                    com.example.backend_Ecom.exception.ErrorCode.UNAUTHORIZED,
+//                    "Authentication required"
+//            );
+//        }
+
+        ChangePassResponseDto response = userService.changePassword(principal.getId(), request);
+        return ResponseEntity.ok(response);
     }
 }

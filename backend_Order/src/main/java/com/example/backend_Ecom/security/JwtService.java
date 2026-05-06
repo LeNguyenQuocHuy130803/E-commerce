@@ -31,6 +31,22 @@ public class JwtService {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
+    /**
+     * Generate access token for user authentication  ; tạo ra access token để xác thực người dùng
+     */
+    public String generateAccessToken(User user) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("id", user.getId());
+        claims.put("type", "access_token");
+
+        //  cách cũ lấy time tại file
+        // long jwtExpiration = 7 * 24 * 60 * 60 * 1000; // 7 days
+        // return createToken(claims, user.getEmail(), jwtExpiration);
+
+        //  cách mới lấy time để access token hoạt động từ file application.properties
+        return createToken(claims, user.getEmail(), jwtProperties.getAccessTokenExpiration());
+    }
+
     private String createToken(Map<String, Object> claims, String subject, long expiration) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expiration);
@@ -44,21 +60,7 @@ public class JwtService {
                 .compact();
     }
 
-    /**
-     * Generate access token for user authentication  ; tạo ra access token để xác thực người dùng
-     */
-    public String generateAccessToken(User user) {
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("id", user.getId());
-        claims.put("type", "access_token");
 
-        //  cách cũ lấy time tại file 
-    // long jwtExpiration = 7 * 24 * 60 * 60 * 1000; // 7 days
-    // return createToken(claims, user.getEmail(), jwtExpiration);
-
-    //  cách mới lấy time để access token hoạt động từ file application.properties 
-        return createToken(claims, user.getEmail(), jwtProperties.getAccessTokenExpiration());
-    }
 
     /**
      * Generate refresh token for obtaining new access tokens  : tạo ra refresh token để lấy access token mới khi access token cũ hết hạn
@@ -111,7 +113,7 @@ public class JwtService {
     public Boolean isTokenValid(String token, UserDetails userDetails) {
         final String email = extractEmail(token);
         final String tokenType = extractTokenType(token);
-        return (email.equals(userDetails.getUsername()))
+        return (email.equals(userDetails.getUsername()))  // nếu email trong token (email dc mã hóa trong jwt) trùng với email của userDetails (tức là user đang cố gắng sử dụng token của mình để xác thực)
                 && !isTokenExpired(token)
                 && "access_token".equals(tokenType);
     }

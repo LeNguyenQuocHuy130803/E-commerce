@@ -41,6 +41,12 @@ public class BlogService {
         // Validation done at Controller level using @Valid annotation on DTO
         
         String uploadedImageUrl = null;
+
+        // Check duplicate title early to avoid unnecessary uploads
+        if (request.getTitle() != null && blogRepository.existsByTitle(request.getTitle())) {
+            throw new AppException(ErrorCode.INVALID_REQUEST, "Blog title already exists");
+        }
+
         try {
             // Handle image upload
             if (request.getAvatar() != null && !request.getAvatar().isEmpty()) {
@@ -63,7 +69,10 @@ public class BlogService {
 
             return mapToDto(blog);
 
-        } catch (RuntimeException e) {
+        } catch (AppException e) {
+            // Rethrow known application exceptions unchanged
+            throw e;
+        } catch (Exception e) {
             // COMPENSATING TRANSACTION: Delete orphaned image if DB save or file upload fails
             if (uploadedImageUrl != null && request.getAvatar() != null && !request.getAvatar().isEmpty()) {
                 try {
@@ -84,7 +93,7 @@ public class BlogService {
      * @return BlogResponseDto with updated blog post
      */
     @Transactional
-    public BlogResponseDto updateBlog(Long id, BlogRequestDto request) {
+    public BlogResponseDto updateBlog(Long id, com.example.backend_Ecom.dto.BlogUpdateRequestDto request) {
         log.info("Updating blog post: {}", id);
 
         // Find blog post
@@ -110,12 +119,22 @@ public class BlogService {
                 blog.setAvatar(request.getAvatarUrl());
             }
 
-            // Update fields
-            blog.setTitle(request.getTitle());
-            blog.setSummary(request.getSummary());
-            blog.setContent(request.getContent());
-            blog.setAuthor(request.getAuthor());
-            blog.setCategory(request.getCategory());
+            // Update fields only when provided (partial update)
+            if (request.getTitle() != null && !request.getTitle().isBlank()) {
+                blog.setTitle(request.getTitle());
+            }
+            if (request.getSummary() != null) {
+                blog.setSummary(request.getSummary());
+            }
+            if (request.getContent() != null) {
+                blog.setContent(request.getContent());
+            }
+            if (request.getAuthor() != null) {
+                blog.setAuthor(request.getAuthor());
+            }
+            if (request.getCategory() != null) {
+                blog.setCategory(request.getCategory());
+            }
 
             blog = blogRepository.save(blog);
 
@@ -131,7 +150,10 @@ public class BlogService {
             log.info("✓ Blog updated successfully: {}", id);
             return mapToDto(blog);
 
-        } catch (RuntimeException e) {
+        } catch (AppException e) {
+            // Rethrow known application exceptions unchanged
+            throw e;
+        } catch (Exception e) {
             // COMPENSATING TRANSACTION: Delete newly uploaded image if update or file operation fails
             if (newlyUploadedUrl != null) {
                 try {

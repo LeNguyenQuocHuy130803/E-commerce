@@ -11,8 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
@@ -31,12 +30,10 @@ public class AddressController {
      * Required: Authentication token
      */
     @GetMapping
-    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Get all addresses for current user")
-    public ResponseEntity<List<AddressResponseDto>> getAddressesByUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-        Long userId = userPrincipal.getId();
+    public ResponseEntity<List<AddressResponseDto>> getAddressesByUserId(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        Long userId = principal.getId();
         return ResponseEntity.ok(addressService.getAddressesByUserId(userId));
     }
 
@@ -46,7 +43,6 @@ public class AddressController {
      * Required: Authentication token
      */
     @GetMapping("/{addressId}")
-    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Get address by ID")
     public ResponseEntity<AddressResponseDto> getAddressById(
             @Parameter(description = "Address ID", example = "1")
@@ -58,7 +54,7 @@ public class AddressController {
      * Create new address
      * POST /api/users/addresses
      * Required: Authentication token
-     * 
+     *
      * Body (JSON):
      * {
      *   "type": "HOME",
@@ -67,13 +63,11 @@ public class AddressController {
      * }
      */
     @PostMapping
-    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Create new address")
     public ResponseEntity<AddressResponseDto> createAddress(
+            @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody AddressRequestDto request) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-        Long userId = userPrincipal.getId();
+        Long userId = principal.getId();
         AddressResponseDto response = addressService.createAddress(userId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -84,7 +78,6 @@ public class AddressController {
      * Required: Authentication token
      */
     @PatchMapping("/{addressId}")
-    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Update address")
     public ResponseEntity<AddressResponseDto> updateAddress(
             @Parameter(description = "Address ID", example = "1")
@@ -99,7 +92,6 @@ public class AddressController {
      * Required: Authentication token
      */
     @DeleteMapping("/{addressId}")
-    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Delete address")
     public ResponseEntity<MessageResponseDto> deleteAddress(
             @Parameter(description = "Address ID", example = "1")
@@ -117,13 +109,10 @@ public class AddressController {
      * Required: Authentication token
      */
     @GetMapping("/default")
-    @PreAuthorize("isAuthenticated()") // Yêu cầu authentication (@PreAuthorize("isAuthenticated()")), Tự động lấy userId từ UserPrincipal của user hiện tại,Trả về AddressResponseDto với type = "HOME" 
     @Operation(summary = "Get default address for current user")
-    public ResponseEntity<AddressResponseDto> getDefaultAddress() {
-        // Get current authenticated user ID
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-        Long userId = userPrincipal.getId();
+    public ResponseEntity<AddressResponseDto> getDefaultAddress(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        Long userId = principal.getId();
         return ResponseEntity.ok(addressService.getDefaultAddress(userId));
     }
 }

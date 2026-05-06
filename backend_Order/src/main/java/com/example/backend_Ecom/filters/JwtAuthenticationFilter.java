@@ -51,7 +51,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             userDetails.getAuthorities());
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                    SecurityContextHolder.getContext().setAuthentication(authToken);  // ở đây nó sẽ làm như này khi iser gửi kèm token lên , dòng : 41 nó sẽ lấy ra email từ dãy token
+                    // sau đó đến dòng 45 sẽ chạy nếu đúng là có email nó sẽ gọi đến file customUserDetailsService.java để tìm user theo email đó có trong db ko
+                    // nếu có user đó nó sẽ so sánh theo code trong file jwtService : đoạn Validate access token nó sẽ check xem thử ad 2 email : email trong JWT vaf email trong db trùng ko nếu trung thì oke pass
+                    //oke hết rồi , Spring sẽ coi request là đã authenticate
+                    //
                 }
             }
         } catch (ExpiredJwtException ex) {

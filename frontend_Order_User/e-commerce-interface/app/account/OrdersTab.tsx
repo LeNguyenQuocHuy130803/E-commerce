@@ -1,239 +1,179 @@
 'use client'
 
 import React, { useState, useMemo } from 'react'
-import { ShoppingBag, Package, Truck, Home, CheckCircle, XCircle, RotateCcw, Eye } from 'lucide-react'
+import { 
+  ShoppingBag, Package, Truck, Home, CheckCircle, 
+  XCircle, RotateCcw, Eye, RefreshCcw, ChevronRight 
+} from 'lucide-react'
 import { useOrdersQuery } from '@/hooks/useOrdersQuery'
+import { motion, AnimatePresence } from 'framer-motion'
 
-
-type OrderStatus = 'all' | 'pending' | 'processing' | 'shipping' | 'delivering' | 'completed' | 'cancelled' | 'returning'
+type OrderStatus = 'all' | 'pending' | 'processing' | 'shipping' | 'completed' | 'cancelled' | 'returning'
 
 interface OrderStatusConfig {
   id: OrderStatus
   label: string
-  icon: React.ReactNode
+  icon: React.ElementType
   color: string
   bgColor: string
   borderColor: string
-  backendStatus?: string // Trạng thái từ backend tương ứng
+  backendStatus?: string
 }
 
 const ORDER_STATUSES: OrderStatusConfig[] = [
-  {
-    id: 'all',
-    label: 'Tất Cả',
-    icon: <ShoppingBag size={20} />,
-    color: 'text-gray-700',
-    bgColor: 'bg-white hover:bg-gray-50',
-    borderColor: 'border-gray-200',
-  },
-  {
-    id: 'pending',
-    label: 'Chờ Thanh Toán',
-    icon: <Package size={20} />,
-    color: 'text-yellow-600',
-    bgColor: 'bg-yellow-50 hover:bg-yellow-100',
-    borderColor: 'border-yellow-200',
-    backendStatus: 'PENDING',
-  },
-  {
-    id: 'processing',
-    label: 'Vận Chuyển',
-    icon: <Truck size={20} />,
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-50 hover:bg-blue-100',
-    borderColor: 'border-blue-200',
-    backendStatus: 'PROCESSING',
-  },
-  {
-    id: 'shipping',
-    label: 'Chờ Giao Hàng',
-    icon: <Home size={20} />,
-    color: 'text-purple-600',
-    bgColor: 'bg-purple-50 hover:bg-purple-100',
-    borderColor: 'border-purple-200',
-    backendStatus: 'SHIPPING',
-  },
-  {
-    id: 'completed',
-    label: 'Hoàn Thành',
-    icon: <CheckCircle size={20} />,
-    color: 'text-green-600',
-    bgColor: 'bg-green-50 hover:bg-green-100',
-    borderColor: 'border-green-200',
-    backendStatus: 'COMPLETED',
-  },
-  {
-    id: 'cancelled',
-    label: 'Đã Hủy',
-    icon: <XCircle size={20} />,
-    color: 'text-red-600',
-    bgColor: 'bg-red-50 hover:bg-red-100',
-    borderColor: 'border-red-200',
-    backendStatus: 'CANCELLED',
-  },
-  {
-    id: 'returning',
-    label: 'Trả Hàng/Hoàn Tiền',
-    icon: <RotateCcw size={20} />,
-    color: 'text-orange-600',
-    bgColor: 'bg-orange-50 hover:bg-orange-100',
-    borderColor: 'border-orange-200',
-    backendStatus: 'RETURNING',
-  },
+  { id: 'all', label: 'Tất Cả', icon: ShoppingBag, color: 'text-gray-700', bgColor: 'bg-gray-100', borderColor: 'border-gray-200' },
+  { id: 'pending', label: 'Chờ Thanh Toán', icon: Package, color: 'text-yellow-600', bgColor: 'bg-yellow-50', borderColor: 'border-yellow-200', backendStatus: 'PENDING' },
+  { id: 'processing', label: 'Vận Chuyển', icon: Truck, color: 'text-blue-600', bgColor: 'bg-blue-50', borderColor: 'border-blue-200', backendStatus: 'PROCESSING' },
+  { id: 'shipping', label: 'Chờ Giao Hàng', icon: Home, color: 'text-purple-600', bgColor: 'bg-purple-50', borderColor: 'border-purple-200', backendStatus: 'SHIPPING' },
+  { id: 'completed', label: 'Hoàn Thành', icon: CheckCircle, color: 'text-green-600', bgColor: 'bg-green-50', borderColor: 'border-green-200', backendStatus: 'COMPLETED' },
+  { id: 'cancelled', label: 'Đã Hủy', icon: XCircle, color: 'text-red-600', bgColor: 'bg-red-50', borderColor: 'border-red-200', backendStatus: 'CANCELLED' },
+  { id: 'returning', label: 'Trả Hàng', icon: RotateCcw, color: 'text-orange-600', bgColor: 'bg-orange-50', borderColor: 'border-orange-200', backendStatus: 'RETURNING' },
 ]
 
-const getStatusConfig = (status: OrderStatus) =>
-  ORDER_STATUSES.find((s) => s.id === status)
-
-const getBackendStatusLabel = (backendStatus: string): OrderStatus => {
-  const status = backendStatus.toLowerCase()
-  const config = ORDER_STATUSES.find((s) => s.backendStatus?.toLowerCase() === status)
-  return (config?.id as OrderStatus) || 'pending'
-}
+const formatPrice = (price: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price)
 
 const formatDate = (dateString: string) => {
-  const date = new Date(dateString)
-  return new Intl.DateTimeFormat('vi-VN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date)
-}
-
-const formatPrice = (price: number) => {
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-  }).format(price)
+  return new Date(dateString).toLocaleDateString('vi-VN', {
+    year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit'
+  })
 }
 
 export function OrdersTab() {
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus>('all')
-  const { data: orders = [], isLoading, error } = useOrdersQuery()
+  const { data: orders = [], isLoading, error, refetch } = useOrdersQuery()
 
-  // Filter orders by selected status
+  // Lọc đơn hàng mượt mà
   const filteredOrders = useMemo(() => {
     if (selectedStatus === 'all') return orders
-    const backendStatus = getStatusConfig(selectedStatus)?.backendStatus
-    if (!backendStatus) return orders
-    return orders.filter(
-      (order) => order.status.toUpperCase() === backendStatus.toUpperCase()
-    )
+    const targetStatus = ORDER_STATUSES.find(s => s.id === selectedStatus)?.backendStatus
+    return orders.filter(o => o.status.toUpperCase() === targetStatus?.toUpperCase())
   }, [orders, selectedStatus])
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      {/* Tab Navigation */}
-      <div className="border-b border-gray-200 mb-6 pb-4">
-        <div className="flex flex-wrap gap-2">
-          {ORDER_STATUSES.map((status) => (
-            <button
-              key={status.id}
-              onClick={() => setSelectedStatus(status.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all font-semibold ${
-                selectedStatus === status.id
-                  ? `${status.bgColor} ${status.borderColor} border-2 ${status.color}`
-                  : 'border-gray-200 text-gray-600 hover:border-gray-300'
-              }`}
-            >
-              <span className={selectedStatus === status.id ? status.color : 'text-gray-500'}>
-                {status.icon}
-              </span>
-              <span>{status.label}</span>
-            </button>
-          ))}
+    <div className="w-full space-y-6">
+      {/* Tab Navigation với hiệu ứng motion */}
+      <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
+        <div className="flex gap-2 min-w-max">
+          {ORDER_STATUSES.map((status) => {
+            const Icon = status.icon
+            const isActive = selectedStatus === status.id
+            return (
+              <button
+                key={status.id}
+                onClick={() => setSelectedStatus(status.id)}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-bold text-xs uppercase tracking-widest active:scale-95 ${
+                  isActive ? `${status.bgColor} ${status.color} shadow-sm` : 'text-gray-400 hover:bg-gray-50'
+                }`}
+              >
+                <Icon size={16} strokeWidth={isActive ? 3 : 2} />
+                {status.label}
+              </button>
+            )
+          })}
         </div>
       </div>
 
       {/* Loading State */}
       {isLoading && (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin">
-            <div className="w-8 h-8 border-4 border-[#ff5528] border-t-transparent rounded-full"></div>
-          </div>
+        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-dashed border-gray-200">
+          <RefreshCcw className="animate-spin text-[#ff5528] mb-4" size={32} />
+          <p className="text-gray-500 font-bold uppercase text-[10px] tracking-[0.2em]">Đang tải dữ liệu...</p>
         </div>
       )}
 
       {/* Error State */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-700">❌ {error.message || 'Lỗi khi tải đơn hàng'}</p>
+        <div className="bg-red-50 border-2 border-red-100 rounded-2xl p-6 text-center">
+          <p className="text-red-600 font-bold mb-4">⚠️ {error.message || 'Hệ thống API đang gặp sự cố (HTML thay vì JSON)'}</p>
+          <button 
+            onClick={() => refetch()}
+            className="px-6 py-2 bg-red-600 text-white rounded-full text-xs font-black uppercase tracking-widest hover:bg-red-700 transition-all"
+          >
+            Thử lại ngay
+          </button>
         </div>
       )}
 
       {/* Orders List */}
-      <div className="space-y-4">
-        {!isLoading && !error && filteredOrders.length === 0 && (
-          <div className="text-center py-12">
-            <ShoppingBag size={48} className="mx-auto text-gray-300 mb-4" />
-            <p className="text-gray-500 text-lg">Không có đơn hàng nào</p>
-            <p className="text-gray-400 text-sm mt-2">Hãy bắt đầu mua sắm ngay hôm nay!</p>
-          </div>
-        )}
+      <div className="grid gap-4">
+        <AnimatePresence mode='popLayout'>
+          {!isLoading && !error && filteredOrders.length === 0 ? (
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              className="text-center py-20 bg-white rounded-3xl border border-gray-100"
+            >
+              <ShoppingBag size={64} className="mx-auto text-gray-100 mb-4" />
+              <p className="text-gray-400 font-black uppercase text-[10px] tracking-[0.3em]">Không có đơn hàng nào trong mục này</p>
+            </motion.div>
+          ) : (
+            filteredOrders.map((order) => {
+              const statusCfg = ORDER_STATUSES.find(s => s.backendStatus === order.status.toUpperCase()) || ORDER_STATUSES[0];
+              const StatusIcon = statusCfg.icon;
 
-        {/* Order Cards */}
-        {!isLoading &&
-          filteredOrders.map((order) => {
-            const orderStatusLabel = getBackendStatusLabel(order.status)
-            const statusConfig = getStatusConfig(orderStatusLabel)
-
-            return (
-              <div
-                key={order.id}
-                className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-              >
-                {/* Header */}
-                <div className="flex items-center justify-between mb-3 pb-3 border-b border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-gray-600">
-                      Đơn hàng #{order.id}
-                    </span>
-                    <span
-                      className={`px-2 py-1 ${statusConfig?.bgColor} ${statusConfig?.color} text-xs font-semibold rounded flex items-center gap-1`}
-                    >
-                      {statusConfig?.icon}
-                      {statusConfig?.label}
-                    </span>
-                  </div>
-                  <span className="text-sm text-gray-500">{formatDate(order.createdAt)}</span>
-                </div>
-
-                {/* Items List */}
-                <div className="space-y-2 mb-3 pb-3 border-b border-gray-100">
-                  {order.items.slice(0, 2).map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-start gap-4">
-                      <div className="flex-1">
-                        <p className="font-semibold text-gray-900 text-sm">{item.productName}</p>
-                        <p className="text-xs text-gray-500">Số lượng: {item.quantity}</p>
+              return (
+                <motion.div
+                  layout
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  key={order.id}
+                  className="group bg-white border border-gray-100 rounded-[2rem] p-6 hover:shadow-xl hover:shadow-gray-100 transition-all duration-300"
+                >
+                  {/* Card Header */}
+                  <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-6 border-b border-gray-50">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-3 rounded-2xl ${statusCfg.bgColor} ${statusCfg.color}`}>
+                        <StatusIcon size={20} />
                       </div>
-                      <p className="font-semibold text-[#ff5528] text-sm">
-                        {formatPrice(item.price * item.quantity)}
-                      </p>
+                      <div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Mã đơn hàng</p>
+                        <p className="font-black text-[#0d0d0d]">#{order.id.toString().padStart(6, '0')}</p>
+                      </div>
                     </div>
-                  ))}
-                  {order.items.length > 2 && (
-                    <p className="text-xs text-gray-500 pt-1">
-                      +{order.items.length - 2} sản phẩm khác
-                    </p>
-                  )}
-                </div>
-
-                {/* Total & Actions */}
-                <div className="flex justify-between items-center">
-                  <div>
-                    <span className="text-gray-600 text-sm">Tổng cộng:</span>
-                    <p className="text-lg font-bold text-[#ff5528]">{formatPrice(order.totalPrice)}</p>
+                    <div className="text-right">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Ngày đặt</p>
+                      <p className="font-bold text-sm text-gray-600">{formatDate(order.createdAt)}</p>
+                    </div>
                   </div>
-                  <button className="flex items-center gap-2 px-4 py-2 bg-[#ff5528] text-white rounded-lg font-semibold hover:bg-orange-600 transition-colors">
-                    <Eye size={18} />
-                    Xem Chi Tiết
-                  </button>
-                </div>
-              </div>
-            )
-          })}
+
+                  {/* Items - Rút gọn */}
+                  <div className="space-y-4 mb-6">
+                    {order.items.slice(0, 3).map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between group/item">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center font-black text-gray-300 text-xs">
+                            {item.quantity}x
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-800 text-sm group-hover/item:text-[#ff5528] transition-colors">{item.productName}</p>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Đơn giá: {formatPrice(item.price)}</p>
+                          </div>
+                        </div>
+                        <p className="font-black text-gray-700 text-sm">{formatPrice(item.price * item.quantity)}</p>
+                      </div>
+                    ))}
+                    {order.items.length > 3 && (
+                      <p className="text-[10px] font-black text-[#ff5528] uppercase tracking-widest pl-1">
+                        + và {order.items.length - 3} sản phẩm khác
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Card Footer */}
+                  <div className="flex items-center justify-between pt-6 border-t border-gray-50">
+                    <div>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Tổng thanh toán</p>
+                      <p className="text-2xl font-black text-[#ff5528] tracking-tighter">{formatPrice(order.totalPrice)}</p>
+                    </div>
+                    <button className="flex items-center gap-2 px-6 py-3 bg-[#0d0d0d] text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-[#ff5528] transition-all shadow-lg active:scale-95">
+                      Xem chi tiết <ChevronRight size={14} />
+                    </button>
+                  </div>
+                </motion.div>
+              )
+            })
+          )}
+        </AnimatePresence>
       </div>
     </div>
   )

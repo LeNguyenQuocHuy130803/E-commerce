@@ -20,20 +20,30 @@ export function useAuth(): Auth {
   const queryClient = useQueryClient()
 
   useEffect(() => {
-    // ✅ Lấy user từ localStorage khi component mount
-    const currentUser = authService.getCurrentUser()
-    setUser(currentUser)
-    setLoading(false)
+    const syncCurrentUser = () => {
+      // ✅ Lấy user từ localStorage khi component mount hoặc auth thay đổi
+      const currentUser = authService.getCurrentUser()
+      setUser(currentUser)
+      setLoading(false)
 
-    // Kiểm tra nếu chưa login
-    if (!currentUser) {
-      console.log('ℹ️ [useAuth] User not authenticated')
-    } else {
-      console.log('✅ [useAuth] User authenticated:', currentUser.userName)
+      // Kiểm tra nếu chưa login
+      if (!currentUser) {
+        console.log('ℹ️ [useAuth] User not authenticated')
+      } else {
+        console.log('✅ [useAuth] User authenticated:', currentUser.userName)
+      }
+    }
+
+    syncCurrentUser()
+    window.addEventListener(authService.AUTH_USER_CHANGE_EVENT, syncCurrentUser)
+
+    return () => {
+      window.removeEventListener(authService.AUTH_USER_CHANGE_EVENT, syncCurrentUser)
     }
   }, [])   // Chỉ chạy 1 lần khi component mount ( tức là componen nào dùng nó thì nó sẽ chạy 1 lần khi component đó mount)
 
   const logout = async () => {
+    setUser(null)
 
     // 🗑️ Clear all React Query cache khi logout
     // Giúp tránh những request cũ bị gửi sau logout
@@ -42,7 +52,6 @@ export function useAuth(): Auth {
 
     console.log('🚪 [useAuth] Logging out...')
     await authService.logout()
-    setUser(null)
     router.push('/')
   }
 

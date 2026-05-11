@@ -2,6 +2,8 @@ package com.example.backend_Ecom.controller;
 
 import com.example.backend_Ecom.dto.BlogRequestDto;
 import com.example.backend_Ecom.dto.BlogResponseDto;
+import com.example.backend_Ecom.dto.BlogReviewRequestDto;
+import com.example.backend_Ecom.dto.BlogUpdateRequestDto;
 import com.example.backend_Ecom.dto.MessageResponseDto;
 import com.example.backend_Ecom.dto.PaginatedBlogResponseDto;
 import com.example.backend_Ecom.service.BlogService;
@@ -15,7 +17,9 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 
+import java.security.Principal;
 import java.util.List;
+import org.springframework.http.MediaType;
 
 @Tag(name = "Blog", description = "Blog operations - CRUD and pagination")
 @RequiredArgsConstructor
@@ -26,17 +30,13 @@ public class BlogController {
     private final BlogService blogService;
 
     /**
-     * GET /api/blogs?page=1&size=10
-     * Get all blog posts with pagination
-     * Frontend: Lấy danh sách bài viết blog theo trang
+     * LẤY DANH SÁCH BLOG (PHÂN TRANG)
+     * Lúc này dữ liệu trả về đã có sẵn điểm sao và số bình luận (Rất nhanh)
      */
-    @Operation(summary = "Get all blog posts with pagination")
     @GetMapping
     public ResponseEntity<PaginatedBlogResponseDto> getAllBlogs(
-            @Parameter(description = "Page number (1-based)", example = "1")
-            @RequestParam(defaultValue = "1") @Min(1) int page,
-            @Parameter(description = "Items per page", example = "10")
-            @RequestParam(defaultValue = "10") @Min(1) int size) {
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(blogService.getAllBlogsPaginated(page, size));
     }
 
@@ -64,48 +64,46 @@ public class BlogController {
     }
 
     /**
-     * POST /api/blogs
-     * Create a new blog post with image upload
-     * Frontend: Gửi form data với file upload
-     * 
-     * Request (multipart/form-data):
-     * - title: "The Secret to Perfect Fried Chicken"
-     * - description: "Learn the techniques our chefs use..."
-     * - author: "Chef Thomas"
-     * - category: "Recipes"
-     * - avatar: <binary file>
+     * TẠO BÀI VIẾT MỚI
+     * Dùng ModelAttribute để hỗ trợ upload File (Multipart)
      */
-    @Operation(summary = "Create a new blog post")
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<BlogResponseDto> createBlog(
             @Valid @ModelAttribute BlogRequestDto request) {
-        BlogResponseDto created = blogService.createBlog(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        return ResponseEntity.status(HttpStatus.CREATED).body(blogService.createBlog(request));
     }
 
     /**
-     * PATCH /api/blogs/{id}
-     * Partial update an existing blog post
-     * Frontend: Update bài viết với file upload lựa chọn (partial fields accepted)
+     * CẬP NHẬT BÀI VIẾT (PATCH)
      */
-    @Operation(summary = "Update blog post")
     @PatchMapping("/{id}")
     public ResponseEntity<BlogResponseDto> updateBlog(
-            @Parameter(description = "Blog post ID") @PathVariable @Min(1) Long id,
-            @ModelAttribute com.example.backend_Ecom.dto.BlogUpdateRequestDto request) {
+            @PathVariable Long id,
+            @ModelAttribute BlogUpdateRequestDto request) {
         return ResponseEntity.ok(blogService.updateBlog(id, request));
     }
 
     /**
-     * DELETE /api/blogs/{id}
-     * Delete a blog post
-     * Frontend: Xóa bài viết (kèm xóa ảnh trên Cloudinary)
+     * XÓA BÀI VIẾT
      */
-    @Operation(summary = "Delete blog post")
     @DeleteMapping("/{id}")
-    public ResponseEntity<MessageResponseDto> deleteBlog(
-            @Parameter(description = "Blog post ID") @PathVariable @Min(1) Long id) {
+    public ResponseEntity<MessageResponseDto> deleteBlog(@PathVariable Long id) {
         blogService.deleteBlog(id);
-        return ResponseEntity.ok(new MessageResponseDto(true, "Blog post deleted successfully"));
+        return ResponseEntity.ok(new MessageResponseDto(true, "Bài viết đã được xóa vĩnh viễn"));
+    }
+
+    /**
+     * API GỬI ĐÁNH GIÁ (RATING & COMMENT)
+     * Bảo mật: Dùng Principal để lấy email người dùng từ JWT Token
+     */
+    @Operation(summary = "Gửi đánh giá và số sao cho bài viết")
+    @PostMapping("/{id}/reviews")
+    public ResponseEntity<BlogResponseDto> addReview(
+            @PathVariable Long id,
+            @Valid @RequestBody BlogReviewRequestDto request,
+            Principal principal) {
+
+        // principal.getName() sẽ trả về email/username của thằng đang login
+        return ResponseEntity.ok(blogService.addReview(id, principal.getName(), request));
     }
 }

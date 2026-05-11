@@ -2,11 +2,18 @@ package com.example.backend_Ecom.service;
 
 import com.example.backend_Ecom.dto.BlogRequestDto;
 import com.example.backend_Ecom.dto.BlogResponseDto;
+import com.example.backend_Ecom.dto.BlogReviewRequestDto;
+import com.example.backend_Ecom.dto.BlogUpdateRequestDto;
 import com.example.backend_Ecom.dto.PaginatedBlogResponseDto;
 import com.example.backend_Ecom.entity.Blog;
+import com.example.backend_Ecom.entity.BlogReview;
+import com.example.backend_Ecom.entity.User;
 import com.example.backend_Ecom.exception.AppException;
 import com.example.backend_Ecom.exception.ErrorCode;
 import com.example.backend_Ecom.repository.BlogRepository;
+import com.example.backend_Ecom.repository.BlogReviewRepository;
+import com.example.backend_Ecom.repository.UserJpaRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -14,6 +21,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.dao.DataAccessException;
 
 import java.util.List;
@@ -31,144 +39,80 @@ public class BlogService {
 
     private final BlogRepository blogRepository;
     private final FileUploadService fileUploadService;
+    private final BlogReviewRepository reviewRepository; // Repository mới để quản lý Review
+    private final UserJpaRepository userJpaRepository; // Để tìm User từ Token
 
     /**
      * Create a new blog post
+     * 
      * @param request BlogRequestDto containing blog post details
      * @return BlogResponseDto with created blog post
      */
     public BlogResponseDto createBlog(BlogRequestDto request) {
-        // Validation done at Controller level using @Valid annotation on DTO
-        
-        String uploadedImageUrl = null;
-
-        // Check duplicate title early to avoid unnecessary uploads
-        if (request.getTitle() != null && blogRepository.existsByTitle(request.getTitle())) {
-            throw new AppException(ErrorCode.INVALID_REQUEST, "Blog title already exists");
+        if (blogRepository.existsByTitle(request.getTitle())) {
+            throw new AppException(ErrorCode.INVALID_REQUEST, "Tiêu đề bài viết đã tồn tại");
         }
 
-        try {
-            // Handle image upload
-            if (request.getAvatar() != null && !request.getAvatar().isEmpty()) {
-                uploadedImageUrl = fileUploadService.uploadImage(request.getAvatar());
-            } else if (request.getAvatarUrl() != null) {
-                uploadedImageUrl = request.getAvatarUrl();
-            }
+        // Tách logic xử lý ảnh ra hàm riêng cho sạch code
+        String avatarUrl = handleImageUpload(request.getAvatar(), request.getAvatarUrl());
 
-            // Create blog post
-            Blog blog = Blog.builder()
-                    .title(request.getTitle())
-                    .summary(request.getSummary())
-                    .content(request.getContent())
-                    .author(request.getAuthor())
-                    .category(request.getCategory())
-                    .avatar(uploadedImageUrl)
-                    .build();
+        Blog blog = Blog.builder()
+                .title(request.getTitle())
+                .summary(request.getSummary())
+                .content(request.getContent())
+                .author(request.getAuthor())
+                .category(request.getCategory())
+                .avatar(avatarUrl)
+                .averageRating(0.0) // Mặc định mới tạo là 0 sao
+                .reviewCount(0) // 0 lượt đánh giá
+                .build();
 
-            blog = blogRepository.save(blog);
-
-            return mapToDto(blog);
-
-        } catch (AppException e) {
-            // Rethrow known application exceptions unchanged
-            throw e;
-        } catch (Exception e) {
-            // COMPENSATING TRANSACTION: Delete orphaned image if DB save or file upload fails
-            if (uploadedImageUrl != null && request.getAvatar() != null && !request.getAvatar().isEmpty()) {
-                try {
-                    fileUploadService.deleteImage(uploadedImageUrl);
-                } catch (RuntimeException ex) {
-                    log.error("⚠️ Failed to delete orphaned image: {}", uploadedImageUrl, ex);
-                }
-            }
-            log.error("Failed to create blog", e);
-            throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR, "Failed to create blog: " + e.getMessage());
-        }
+        return mapToDto(blogRepository.save(blog));
     }
 
     /**
      * Update an existing blog post
-     * @param id Blog post ID
+     * 
+     * @param id      Blog post ID
      * @param request BlogRequestDto containing updated blog post details
      * @return BlogResponseDto with updated blog post
      */
     @Transactional
-    public BlogResponseDto updateBlog(Long id, com.example.backend_Ecom.dto.BlogUpdateRequestDto request) {
-        log.info("Updating blog post: {}", id);
-
-        // Find blog post
+    public BlogResponseDto updateBlog(Long id, BlogUpdateRequestDto request) {
         Blog blog = blogRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Blog post not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND));
 
-        // Check if new title already exists (and it's different from current)
-        if (request.getTitle() != null &&
-                !blog.getTitle().equals(request.getTitle()) &&
-                blogRepository.existsByTitle(request.getTitle())) {
-            throw new AppException(ErrorCode.INVALID_REQUEST, "Blog title already exists");
+        // Xử lý xoay vòng ảnh: Upload ảnh mới thành công -> Xóa ảnh cũ trên Cloudinary
+        if (request.getAvatar() != null && !request.getAvatar().isEmpty()) {
+            String oldUrl = blog.getAvatar();
+            blog.setAvatar(fileUploadService.uploadImage(request.getAvatar()));
+            if (oldUrl != null)
+                fileUploadService.deleteImage(oldUrl);
         }
 
-        String oldImageUrl = blog.getAvatar();
-        String newlyUploadedUrl = null;
+        if (request.getTitle() != null)
+            blog.setTitle(request.getTitle());
+        if (request.getSummary() != null)
+            blog.setSummary(request.getSummary());
+        if (request.getContent() != null)
+            blog.setContent(request.getContent());
+        if (request.getCategory() != null)
+            blog.setCategory(request.getCategory());
 
-        try {
-            // Handle image update
-            if (request.getAvatar() != null && !request.getAvatar().isEmpty()) {
-                newlyUploadedUrl = fileUploadService.uploadImage(request.getAvatar());
-                blog.setAvatar(newlyUploadedUrl);
-            } else if (request.getAvatarUrl() != null) {
-                blog.setAvatar(request.getAvatarUrl());
-            }
+        return mapToDto(blogRepository.save(blog));
+    }
 
-            // Update fields only when provided (partial update)
-            if (request.getTitle() != null && !request.getTitle().isBlank()) {
-                blog.setTitle(request.getTitle());
-            }
-            if (request.getSummary() != null) {
-                blog.setSummary(request.getSummary());
-            }
-            if (request.getContent() != null) {
-                blog.setContent(request.getContent());
-            }
-            if (request.getAuthor() != null) {
-                blog.setAuthor(request.getAuthor());
-            }
-            if (request.getCategory() != null) {
-                blog.setCategory(request.getCategory());
-            }
-
-            blog = blogRepository.save(blog);
-
-            // Delete old image only after successfully saving to DB
-            if (newlyUploadedUrl != null && oldImageUrl != null && !oldImageUrl.isEmpty()) {
-                try {
-                    fileUploadService.deleteImage(oldImageUrl);
-                } catch (RuntimeException ex) {
-                    log.warn("⚠️ Failed to delete old image: {}", oldImageUrl, ex);
-                }
-            }
-
-            log.info("✓ Blog updated successfully: {}", id);
-            return mapToDto(blog);
-
-        } catch (AppException e) {
-            // Rethrow known application exceptions unchanged
-            throw e;
-        } catch (Exception e) {
-            // COMPENSATING TRANSACTION: Delete newly uploaded image if update or file operation fails
-            if (newlyUploadedUrl != null) {
-                try {
-                    fileUploadService.deleteImage(newlyUploadedUrl);
-                } catch (RuntimeException ex) {
-                    log.error("⚠️ Failed to delete orphaned new image during rollback: {}", newlyUploadedUrl, ex);
-                }
-            }
-            log.error("Failed to update blog", e);
-            throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR, "Failed to update blog: " + e.getMessage());
+    // Helper method để code nhìn gọn hơn
+    private String handleImageUpload(MultipartFile file, String fallbackUrl) {
+        if (file != null && !file.isEmpty()) {
+            return fileUploadService.uploadImage(file);
         }
+        return fallbackUrl;
     }
 
     /**
      * Delete a blog post
+     * 
      * @param id Blog post ID
      */
     @Transactional
@@ -196,6 +140,7 @@ public class BlogService {
 
     /**
      * Get blog post by ID
+     * 
      * @param id Blog post ID
      * @return BlogResponseDto
      */
@@ -210,6 +155,7 @@ public class BlogService {
 
     /**
      * Get all blog posts with pagination
+     * 
      * @param page Page number (1-based)
      * @param size Number of items per page
      * @return PaginatedBlogResponseDto
@@ -218,8 +164,10 @@ public class BlogService {
         log.info("Fetching all blog posts - page: {}, size: {}", page, size);
 
         // Validate and normalize pagination parameters
-        if (page < 1) page = 1;
-        if (size < 1) size = 10;
+        if (page < 1)
+            page = 1;
+        if (size < 1)
+            size = 10;
 
         // Convert 1-based page to 0-based for Spring Data
         Pageable pageable = PageRequest.of(page - 1, size);
@@ -235,7 +183,7 @@ public class BlogService {
         // Build response with pagination info (convert back to 1-based)
         return PaginatedBlogResponseDto.builder()
                 .data(blogDtos)
-                .pageNumber(blogPage.getNumber() + 1)      // Convert back to 1-based
+                .pageNumber(blogPage.getNumber() + 1) // Convert back to 1-based
                 .pageSize(blogPage.getSize())
                 .totalRecords(blogPage.getTotalElements())
                 .totalPages(blogPage.getTotalPages())
@@ -246,6 +194,7 @@ public class BlogService {
 
     /**
      * Get all blog posts (non-paginated)
+     * 
      * @return List of BlogResponseDto
      */
     public List<BlogResponseDto> getAllBlogs() {
@@ -257,7 +206,61 @@ public class BlogService {
     }
 
     /**
+     * THÊM ĐÁNH GIÁ (REVIEW & RATING)
+     * Đây là hàm quan trọng nhất mới thêm vào.
+     */
+    public BlogResponseDto addReview(Long blogId, String userEmail, BlogReviewRequestDto request) {
+        log.info("User {} is adding a review for blog ID: {}", userEmail, blogId);
+
+        // 1. Kiểm tra Blog có tồn tại không
+        Blog blog = blogRepository.findById(blogId)
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy bài viết"));
+
+        // 2. Lấy thông tin User từ Email (lấy từ Token)
+        User user = userJpaRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        // 3. CHỐNG SPAM: Mỗi User chỉ được đánh giá 1 bài blog 1 lần duy nhất
+        if (reviewRepository.existsByBlogIdAndUserId(blogId, user.getId())) {
+            throw new AppException(ErrorCode.INVALID_REQUEST, "Bạn đã đánh giá bài viết này rồi");
+        }
+
+        // 4. Lưu Review mới (Gộp chung content và số sao)
+        BlogReview review = BlogReview.builder()
+                .blog(blog)
+                .user(user)
+                .content(request.getContent())
+                .rating(request.getRating())
+                .build();
+        reviewRepository.save(review);
+
+        // 5. CẬP NHẬT RATING (Kỹ thuật Denormalization)
+        // Thay vì COUNT/AVG trong DB mỗi lần load, ta tính toán và lưu trực tiếp kết
+        // quả vào bảng Blog
+        updateBlogStatistics(blog, request.getRating());
+
+        return mapToDto(blogRepository.save(blog));
+    }
+
+    /**
+     * Logic tính toán điểm trung bình mới
+     * Công thức: $$NewAvg = \frac{(OldAvg \times OldCount) + NewStars}{OldCount +
+     * 1}$$
+     */
+    private void updateBlogStatistics(Blog blog, Integer newRating) {
+        int oldCount = blog.getReviewCount();
+        double currentAvg = blog.getAverageRating();
+
+        int newCount = oldCount + 1;
+        double newAvg = ((currentAvg * oldCount) + newRating) / newCount;
+
+        blog.setReviewCount(newCount);
+        blog.setAverageRating(Math.round(newAvg * 10.0) / 10.0); // Làm tròn 1 chữ số thập phân (VD: 4.8)
+    }
+
+    /**
      * Map Blog entity to BlogResponseDto
+     * 
      * @param blog Blog entity
      * @return BlogResponseDto
      */
@@ -270,6 +273,8 @@ public class BlogService {
                 .avatar(blog.getAvatar())
                 .author(blog.getAuthor())
                 .category(blog.getCategory())
+                .averageRating(blog.getAverageRating())
+                .reviewCount(blog.getReviewCount())
                 .createdAt(blog.getCreatedAt())
                 .updatedAt(blog.getUpdatedAt())
                 .build();

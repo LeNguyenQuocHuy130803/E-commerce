@@ -3,16 +3,19 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import { 
   Clock, User, MessageCircle, ArrowRight, Phone, MapPin, 
   Facebook, Twitter, Instagram, Youtube, Menu, X, 
-  ShoppingCart, Search, Calendar 
+  ShoppingCart, Search, Calendar, Star
 } from "lucide-react";
 import { motion, Variants } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { useCartQuery } from "@/hooks/useCartQuery";
+import { BlogService } from "@/service/BlogService";
+import type { BlogPost } from "@/types/blog";
 
-// --- CẤU HÌNH DỮ LIỆU (LOẠI BỎ HARD-CODE) ---
+// --- CẤU HÌNH DỮ LIỆU ---
 const NAV_LINKS = [
   { name: "Home", href: "/" },
   { name: "Food", href: "/food" },
@@ -23,68 +26,41 @@ const NAV_LINKS = [
   { name: "Contact", href: "/contact" },
 ];
 
-const BLOG_POSTS = [
-  {
-    id: 1,
-    title: "Bí quyết cho món gà rán hoàn hảo",
-    excerpt: "Khám phá kỹ thuật mà các đầu bếp của chúng tôi sử dụng để tạo nên lớp vỏ giòn tan và thịt gà mọng nước.",
-    image: "/image/blog/blog1.jpg",
-    author: "Chef Thomas",
-    date: "05/03/2024",
-    comments: 24,
-    category: "Công thức"
-  },
-  {
-    id: 2,
-    title: "5 Loại Topping Burger Bạn Phải Thử",
-    excerpt: "Nâng tầm món Burger của bạn với những sự kết hợp nguyên liệu độc đáo và đầy hương vị.",
-    image: "/image/blog/blog2.jpg",
-    author: "Maria Garcia",
-    date: "03/03/2024",
-    comments: 18,
-    category: "Mẹo nhỏ"
-  },
-  {
-    id: 3,
-    title: "Khai trương chi nhánh mới tại trung tâm",
-    excerpt: "Chúng tôi vô cùng hào hứng thông báo về địa điểm mới sẽ mở cửa vào tháng tới ngay tại trung tâm thành phố.",
-    image: "/image/blog/blog3.jpg",
-    author: "FoodKing Team",
-    date: "01/03/2024",
-    comments: 45,
-    category: "Tin tức"
-  },
-  {
-    id: 4,
-    title: "Nghệ thuật nhào bột Pizza chuẩn vị",
-    excerpt: "Làm chủ các bước cơ bản để tạo nên lớp đế Pizza hoàn hảo, giòn ngoài mềm trong.",
-    image: "/image/blog/blog4.jpg",
-    author: "David Chen",
-    date: "28/02/2024",
-    comments: 32,
-    category: "Công thức"
-  },
-  {
-    id: 5,
-    title: "Fast Food lành mạnh: Liệu có thể?",
-    excerpt: "Tìm hiểu cách chúng tôi tạo ra những món ăn nhanh tốt cho sức khỏe mà không làm mất đi hương vị.",
-    image: "/image/blog/blog5.jpg",
-    author: "Sarah Wilson",
-    date: "25/02/2024",
-    comments: 29,
-    category: "Sức khỏe"
-  },
-  {
-    id: 6,
-    title: "Phía sau căn bếp: Một ngày làm việc",
-    excerpt: "Cùng nhìn lại quá trình chuẩn bị tỉ mỉ cho mỗi món ăn yêu thích của bạn hàng ngày.",
-    image: "/image/blog/blog6.jpg",
-    author: "FoodKing Team",
-    date: "22/02/2024",
-    comments: 15,
-    category: "Khám phá"
-  },
-];
+// --- STAR RATING COMPONENT ---
+function StarRating({ rating, size = 14 }: { rating: number; size?: number }) {
+  return (
+    <div className="flex items-center gap-1">
+      {[0, 1, 2, 3, 4].map((index) => {
+        const fillPercentage = Math.max(0, Math.min(100, (rating - index) * 100));
+        const isFilled = fillPercentage === 100;
+        const isPartial = fillPercentage > 0 && fillPercentage < 100;
+
+        return (
+          <div key={index} className="relative inline-block" style={{ width: size, height: size }}>
+            {/* Sao xám nằm dưới */}
+            <Star size={size} className="text-gray-300 absolute top-0 left-0" fill="currentColor" />
+            
+            {/* Sao vàng nằm trên (có cắt theo phần trăm) */}
+            {(isFilled || isPartial) && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: `${fillPercentage}%`,
+                  overflow: "hidden",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <Star size={size} className="text-[#ffb936]" fill="currentColor" />
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 // --- ANIMATION VARIANTS ---
 const fadeInUp: Variants = {
@@ -99,10 +75,29 @@ const staggerContainer: Variants = {
 
 export default function BlogPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   
   // ✅ FIX: Gọi Hook bên trong Component
   const { isAuthenticated } = useAuth();
   const { itemCount } = useCartQuery(isAuthenticated);
+
+  // 📰 Fetch dữ liệu blog từ API
+  const { data: blogResponse, isLoading, error } = useQuery({
+    queryKey: ["blogs", currentPage],
+    queryFn: () => BlogService.getBlogs(currentPage, 10),
+    staleTime: 1000 * 60 * 5, // Cache 5 phút
+  });
+
+  const blogPosts = blogResponse?.data || [];
+
+  // ✅ Hàm format ngày tháng từ ISO string
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
 
   return (
     <div className="min-h-screen bg-white text-gray-900 overflow-x-hidden">
@@ -177,57 +172,109 @@ export default function BlogPage() {
           </motion.div>
 
           <motion.div 
-            variants={staggerContainer} initial="hidden" whileInView="visible" viewport={{ once: true }}
+            initial="visible"
+            variants={staggerContainer}
             className="grid md:grid-cols-2 lg:grid-cols-3 gap-10"
           >
-            {BLOG_POSTS.map((post) => (
-              <motion.article 
-                key={post.id} variants={fadeInUp}
-                className="bg-white rounded-[2.5rem] shadow-sm hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100 group flex flex-col"
-              >
-                <div className="relative h-64 overflow-hidden">
-                  <Image src={post.image} alt={post.title} fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
-                  <div className="absolute top-6 left-6 bg-[#ff5528] text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg">
-                    {post.category}
-                  </div>
-                </div>
-                
-                <div className="p-8 flex-1 flex flex-col">
-                  <div className="flex items-center gap-5 text-[11px] font-bold text-gray-400 uppercase tracking-tight mb-5">
-                    <span className="flex items-center gap-1.5"><Calendar size={14} className="text-[#ff5528]" /> {post.date}</span>
-                    <span className="flex items-center gap-1.5"><MessageCircle size={14} className="text-[#ff5528]" /> {post.comments} Bình luận</span>
-                  </div>
-                  
-                  <h3 className="text-xl font-black text-[#0d0d0d] mb-4 group-hover:text-[#ff5528] transition-colors leading-tight uppercase tracking-tight">
-                    <Link href={`/blog/${post.id}`}>{post.title}</Link>
-                  </h3>
-                  
-                  <p className="text-gray-500 text-sm font-medium leading-relaxed mb-8 flex-1">
-                    {post.excerpt}
-                  </p>
-                  
-                  <div className="pt-6 border-t border-gray-50 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center"><User size={14} className="text-[#ff5528]" /></div>
-                      <span className="text-[11px] font-black uppercase text-gray-600">{post.author}</span>
+            {isLoading && blogPosts.length === 0 && (
+              <div className="col-span-full text-center py-12">
+                <p className="text-gray-500 font-semibold">Đang tải bài viết...</p>
+              </div>
+            )}
+
+            {error && (
+              <div className="col-span-full text-center py-12">
+                <p className="text-red-500 font-semibold">Lỗi khi tải bài viết. Vui lòng thử lại.</p>
+              </div>
+            )}
+
+            {blogPosts.map((post: BlogPost) => (
+              <Link key={post.id} href={`/blog/${post.id}`} className="group">
+                <motion.article 
+                  variants={fadeInUp}
+                  className="bg-white rounded-[2.5rem] shadow-sm hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100 group-hover:border-[#ff5528] flex flex-col h-full cursor-pointer"
+                >
+                  <div className="relative h-64 overflow-hidden">
+                    <Image src={post.avatar} alt={post.title} fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
+                    <div className="absolute top-6 left-6 bg-[#ff5528] text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg">
+                      {post.category}
                     </div>
-                    <Link href={`/blog/${post.id}`} className="flex items-center gap-2 text-[#ff5528] font-black text-[11px] uppercase tracking-widest hover:gap-3 transition-all">
-                      Xem thêm <ArrowRight size={14} />
-                    </Link>
                   </div>
-                </div>
-              </motion.article>
+                  
+                  <div className="p-8 flex-1 flex flex-col">
+                    {/* Star Rating */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <StarRating rating={post.averageRating} size={14} />
+                      <span className="text-[10px] font-bold text-gray-500">({post.reviewCount})</span>
+                    </div>
+
+                    <div className="flex items-center gap-5 text-[11px] font-bold text-gray-400 uppercase tracking-tight mb-5">
+                      <span className="flex items-center gap-1.5"><Calendar size={14} className="text-[#ff5528]" /> {formatDate(post.createdAt)}</span>
+                      <span className="flex items-center gap-1.5"><MessageCircle size={14} className="text-[#ff5528]" /> {post.reviewCount} Bình luận</span>
+                    </div>
+                    
+                    <h3 className="text-xl font-black text-[#0d0d0d] mb-4 group-hover:text-[#ff5528] transition-colors leading-tight uppercase tracking-tight">
+                      {post.title}
+                    </h3>
+                    
+                    <p className="text-gray-500 text-sm font-medium leading-relaxed mb-8 flex-1">
+                      {post.summary}
+                    </p>
+                    
+                    <div className="pt-6 border-t border-gray-50 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center"><User size={14} className="text-[#ff5528]" /></div>
+                        <span className="text-[11px] font-black uppercase text-gray-600">{post.author}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-[#ff5528] font-black text-[11px] uppercase tracking-widest group-hover:gap-3 transition-all">
+                        Xem thêm <ArrowRight size={14} />
+                      </div>
+                    </div>
+                  </div>
+                </motion.article>
+              </Link>
             ))}
           </motion.div>
 
           {/* Pagination */}
-          <div className="flex justify-center gap-3 mt-16 font-black text-xs">
-            <button className="w-12 h-12 bg-[#ff5528] text-white rounded-2xl shadow-lg shadow-orange-100">01</button>
-            <button className="w-12 h-12 bg-white text-gray-400 rounded-2xl border border-gray-100 hover:border-[#ff5528] hover:text-[#ff5528] transition-all">02</button>
-            <button className="w-12 h-12 bg-white text-gray-400 rounded-2xl border border-gray-100 hover:border-[#ff5528] hover:text-[#ff5528] transition-all">
-              <ArrowRight size={16} className="mx-auto" />
-            </button>
-          </div>
+          {!isLoading && blogResponse && (
+            <div className="flex justify-center gap-3 mt-16 font-black text-xs">
+              <button 
+                onClick={() => setCurrentPage(1)}
+                className={`w-12 h-12 rounded-2xl shadow-lg transition-all ${
+                  currentPage === 1 
+                    ? "bg-[#ff5528] text-white shadow-orange-100" 
+                    : "bg-white text-gray-400 border border-gray-100 hover:border-[#ff5528] hover:text-[#ff5528]"
+                }`}
+              >
+                01
+              </button>
+              
+              {blogResponse.totalPages > 1 && (
+                <>
+                  <button 
+                    onClick={() => setCurrentPage(2)}
+                    className={`w-12 h-12 rounded-2xl transition-all ${
+                      currentPage === 2 
+                        ? "bg-[#ff5528] text-white shadow-lg shadow-orange-100" 
+                        : "bg-white text-gray-400 border border-gray-100 hover:border-[#ff5528] hover:text-[#ff5528]"
+                    }`}
+                  >
+                    02
+                  </button>
+                  
+                  {blogResponse.hasNext && (
+                    <button 
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      className="w-12 h-12 bg-white text-gray-400 rounded-2xl border border-gray-100 hover:border-[#ff5528] hover:text-[#ff5528] transition-all"
+                    >
+                      <ArrowRight size={16} className="mx-auto" />
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </div>
       </section>
 

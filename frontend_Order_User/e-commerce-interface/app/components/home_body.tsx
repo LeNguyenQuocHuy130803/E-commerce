@@ -3,7 +3,13 @@
 import { Clock, Star, ShoppingCart, Quote } from "lucide-react";
 import Image from "next/image";
 import { Button } from "./ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { FoodService } from "@/service/FoodService";
+import type { Food, PaginatedFoodResponse } from "@/types/food";
 import { motion, Variants } from "framer-motion";
+import { useAddToCart } from "@/hooks/useAddToCart";
+import { PRODUCT_TYPES } from "@/types/cart";
+import { toast } from "sonner";
 
 // --- Interfaces ---
 interface Category {
@@ -64,14 +70,23 @@ export default function FoodCategory() {
     { name: "Hot Dog", icon: "/image/category5.jpg", count: "12 Items" },
   ];
 
-  const foodpopular: FoodItem[] = [
-    { name: "Crispy Chicken Wings", price: "$12.99", desc: "8 pcs crispy wings with special sauce", rating: 4.8, image: "/image/foodpopular1.jpg" },
-    { name: "Classic Cheeseburger", price: "$9.99", desc: "Beef patty with cheddar cheese", rating: 4.9, image: "/image/foodpopular2.jpg" },
-    { name: "Pepperoni Pizza", price: "$14.99", desc: "12 inch with extra cheese", rating: 4.7, image: "/image/category2.jpg" },
-    { name: "Loaded Fries", price: "$7.99", desc: "Fries with cheese and bacon", rating: 4.6, image: "/image/category4.jpg" },
-    { name: "BBQ Ribs", price: "$18.99", desc: "Half rack with BBQ glaze", rating: 4.9, image: "/image/category1.jpg" },
-    { name: "Fish & Chips", price: "$11.99", desc: "Crispy battered fish fillets", rating: 4.5, image: "/image/category5.jpg" },
-  ];
+  // Fetch top 6 popular foods from API (replace hardcoded list)
+  const { data: foodsResp, isLoading: foodsLoading, error: foodsError } = useQuery<PaginatedFoodResponse>({
+    queryKey: ["foods", "popular"],
+    queryFn: () => FoodService.getAllFoodsPaginated(1, 6),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const foodpopular: Food[] = (foodsResp as PaginatedFoodResponse | undefined)?.data || [];
+
+  // Best Seller (featured) foods
+  const { data: featuredResp, isLoading: featuredLoading } = useQuery<Food[]>({
+    queryKey: ["foods", "featured"],
+    queryFn: () => FoodService.filterFoods(undefined, true),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const bestSellers: Food[] = featuredResp || [];
 
   const evaluation: Testimonial[] = [
     { name: "Sarah Johnson", role: "Food Blogger", text: "The best fried chicken I've ever had! Absolutely perfect.", avatar: "/image/evaluation1.jpg" },
@@ -169,6 +184,45 @@ export default function FoodCategory() {
         </div>
       </section>
 
+      {/* NEW SECTION: BEST SELLERS */}
+      <section className="py-16 lg:py-24 bg-gradient-to-r from-white via-orange-50 to-white">
+        <div className="container mx-auto px-4 max-w-6xl">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp} className="text-center mb-12">
+            <span className="text-[#ff5528] font-black text-xs uppercase tracking-[0.2em]">Đặc sắc</span>
+            <h2 className="text-3xl lg:text-4xl font-black text-[#0d0d0d] mt-2 tracking-tighter">BEST SELLER</h2>
+            <p className="text-gray-500 mt-3">Những món được yêu thích nhất bởi khách hàng — thơm ngon, bán chạy.</p>
+          </motion.div>
+
+          <motion.div variants={staggerContainer} initial="hidden" whileInView="visible" viewport={{ once: true }} className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {featuredLoading && bestSellers.length === 0 ? (
+              [1, 2, 3].map((s) => (
+                <motion.div key={s} variants={fadeInUp} className="bg-white rounded-3xl p-6 h-64 animate-pulse" />
+              ))
+            ) : (
+              bestSellers.slice(0, 6).map((food) => (
+                <motion.div key={food.id} variants={fadeInUp} className="relative bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all">
+                  <div className="absolute left-4 top-4 bg-[#ff5528] text-white px-3 py-1 rounded-full font-black text-xs">BEST SELLER</div>
+                  <div className="relative h-56">
+                    <Image src={food.imageUrl || "/image/placeholder.jpg"} alt={food.name} fill className="object-cover" />
+                  </div>
+                  <div className="p-6">
+                    <h3 className="text-xl font-extrabold text-[#0d0d0d]">{food.name}</h3>
+                    <p className="text-gray-500 text-sm mt-2 line-clamp-2">{food.description}</p>
+                    <div className="flex items-center justify-between mt-6">
+                      <div>
+                        <div className="text-2xl font-black text-[#ff5528]">${food.price.toFixed(2)}</div>
+                        <div className="text-[11px] text-gray-400">{food.unit} • {food.region}</div>
+                      </div>
+                      <AddToCartButton food={food} />
+                    </div>
+                  </div>
+                </motion.div>
+              ))
+            )}
+          </motion.div>
+        </div>
+      </section>
+
       {/* 3. SECTION POPULAR MENU */}
       <section className="py-16 lg:py-24 bg-white">
         <div className="container mx-auto px-4 max-w-6xl">
@@ -184,27 +238,29 @@ export default function FoodCategory() {
             variants={staggerContainer} initial="hidden" whileInView="visible" viewport={{ once: true }}
             className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
           >
-            {foodpopular.map((item, index) => (
-              <motion.div key={index} variants={fadeInUp} className="bg-white rounded-[2rem] border border-gray-100 overflow-hidden group hover:shadow-2xl transition-all duration-500">
-                <div className="relative h-56 overflow-hidden bg-gray-50">
-                  <Image src={item.image} alt={item.name} fill className="object-cover group-hover:scale-110 transition-transform duration-1000" />
-                  <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full flex items-center gap-1 shadow-md">
-                    <Star className="w-3 h-3 text-[#ffb936] fill-[#ffb936]" />
-                    <span className="font-black text-xs">{item.rating}</span>
+            {foodpopular.map((item, index) => {
+              const imgSrc = (item as any).imageUrl || (item as any).image || "/image/placeholder.jpg";
+              const desc = (item as any).desc || (item as any).description || "";
+              const priceText = typeof (item as any).price === "number" ? `$${(item as any).price.toFixed(2)}` : ((item as any).price as string) ?? "$0.00";
+
+              return (
+                <motion.div key={(item as any).id ?? index} variants={fadeInUp} className="bg-white rounded-[2rem] border border-gray-100 overflow-hidden group hover:shadow-2xl transition-all duration-500">
+                  <div className="relative h-56 overflow-hidden bg-gray-50">
+                    <Image src={imgSrc} alt={(item as any).name} fill className="object-cover group-hover:scale-110 transition-transform duration-1000" />
                   </div>
-                </div>
-                <div className="p-8">
-                  <h3 className="text-xl font-bold text-[#0d0d0d] group-hover:text-[#ff5528] transition-colors">{item.name}</h3>
-                  <p className="text-gray-400 text-sm mt-3 font-medium line-clamp-2">{item.desc}</p>
-                  <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-50">
-                    <span className="text-2xl font-black text-[#ff5528]">{item.price}</span>
-                    <button className="bg-[#ff5528] hover:bg-orange-600 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2">
-                      <ShoppingCart size={14} /> Thêm vào giỏ
-                    </button>
+                  <div className="p-8">
+                    <h3 className="text-xl font-bold text-[#0d0d0d] group-hover:text-[#ff5528] transition-colors">{(item as any).name}</h3>
+                    <p className="text-gray-400 text-sm mt-3 font-medium line-clamp-2">{desc}</p>
+                    <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-50">
+                      <span className="text-2xl font-black text-[#ff5528]">{priceText}</span>
+                      <button className="bg-[#ff5528] hover:bg-orange-600 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2">
+                        <ShoppingCart size={14} /> Thêm vào giỏ
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </motion.div>
         </div>
       </section>
@@ -285,4 +341,31 @@ export default function FoodCategory() {
       </section>
     </main>
   );
+}
+
+function AddToCartButton({ food }: { food: Food }) {
+  const { addToCartAsync, isLoading } = useAddToCart()
+
+  const handleAdd = async () => {
+    try {
+      await addToCartAsync({ productType: PRODUCT_TYPES.FOOD, productId: food.id, quantity: 1 })
+
+      toast.success("Đã thêm vào giỏ hàng", {
+        description: food.name,
+        duration: 2000,
+        action: {
+          label: "Giỏ hàng",
+          onClick: () => (window.location.href = "/cart"),
+        },
+      })
+    } catch (err: any) {
+      toast.error(err.message || "Không thể thêm vào giỏ hàng")
+    }
+  }
+
+  return (
+    <button onClick={handleAdd} disabled={isLoading} className="bg-[#0d0d0d] text-white px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 disabled:opacity-60">
+      <ShoppingCart size={14} /> {isLoading ? "Đang thêm..." : "Thêm"}
+    </button>
+  )
 }

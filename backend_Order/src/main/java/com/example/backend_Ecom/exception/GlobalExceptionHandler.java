@@ -71,27 +71,6 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handle HTTP exception (custom exception for HTTP status codes)
-     * Deprecated: Use AppException instead
-     */
-    @ExceptionHandler(HttpException.class)
-    public ResponseEntity<ErrorResponse> handleHttpException(HttpException ex, WebRequest request) {
-        log.warn("HTTP exception occurred: {} - {}", ex.getStatus(), ex.getMessage());
-        
-        ErrorResponse errorResponse = ErrorResponse.builder()
-                .status(ex.getStatus().value())
-                .code(ex.getStatus().name())
-                .message(ex.getMessage())
-                .path(request.getDescription(false).replace("uri=", ""))
-                .timestamp(LocalDateTime.now())
-                .build();
-
-        return ResponseEntity
-                .status(ex.getStatus())
-                .body(errorResponse);
-    }
-
-    /**
      * Handle authentication exceptions
      */
     @ExceptionHandler(AuthenticationException.class)

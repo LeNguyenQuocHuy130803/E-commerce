@@ -119,25 +119,25 @@ public class OrderService {
 
         order.setItems(orderItems);
 
-        // Validate sản phẩm còn tồn tại và có đủ stock trước khi trừ kho
-        for (OrderItem item : orderItems) {
-            validateProductAndStock(item.getProductType(), item.getProductId(), item.getQuantity());
+        // 🔥 Trừ kho atomic TRƯỚC khi save order:
+        //    decreaseProductQuantity() dùng UPDATE WHERE qty >= :qty tại DB level
+        //    → check sản phẩm tồn tại + đủ hàng trong 1 operation, không có race condition
+        //    → nếu hết hàng hoặc không tìm thấy → throw ngay, order chưa được tạo
+        try {
+            for (OrderItem item : orderItems) {
+                decreaseProductQuantity(
+                    item.getProductType(), item.getProductId(),
+                    item.getQuantity(), item.getProductName());
+            }
+        } catch (Exception e) {
+            log.error("❌ Inventory check/decrease failed — aborting order creation: {}", e.getMessage());
+            throw e instanceof AppException ? (AppException) e
+                : new AppException(ErrorCode.INVALID_REQUEST, "Failed to process inventory: " + e.getMessage());
         }
 
         Order savedOrder = orderRepository.save(order);
         log.info("✓ Order created (PENDING): ID={}, User={}, Address={}, Total={} VND",
             savedOrder.getId(), userId, addressString, savedOrder.getTotalPrice());
-
-        // Trừ kho cho từng sản phẩm (reserve hàng cho order)
-        // Nếu thanh toán thất bại → PaymentService gọi cancelOrderBySystem() để hoàn kho
-        try {
-            for (OrderItem item : orderItems) {
-                decreaseProductQuantity(item.getProductType(), item.getProductId(), item.getQuantity());
-            }
-        } catch (Exception e) {
-            log.error("❌ Failed to decrease inventory for Order ID: {}", savedOrder.getId(), e);
-            throw new AppException(ErrorCode.INVALID_REQUEST, "Failed to process inventory: " + e.getMessage());
-        }
 
         // Xóa giỏ hàng sau khi checkout thành công
         cart.getItems().clear();
@@ -147,52 +147,6 @@ public class OrderService {
         log.info("✓ Order created & inventory reserved. Waiting for payment: ID={}", savedOrder.getId());
 
         return mapToDto(savedOrder);
-    }
-
-    /**
-     * Validate sản phẩm còn tồn tại và có đủ stock
-     */
-    private void validateProductAndStock(ProductType productType, Long productId, Integer requestedQuantity) {
-        switch (productType) {
-            case FOOD:
-                Food food = foodRepository.findById(productId)
-                        .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Food product not found"));
-                if (food.getQuantity() < requestedQuantity) {
-                    throw new AppException(ErrorCode.INVALID_REQUEST,
-                        "Food: " + food.getName() + " - Not enough stock. Available: " + food.getQuantity());
-                }
-                break;
-
-            case DRINK:
-                Drink drink = drinkRepository.findById(productId)
-                        .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Drink product not found"));
-                if (drink.getQuantity() < requestedQuantity) {
-                    throw new AppException(ErrorCode.INVALID_REQUEST,
-                        "Drink: " + drink.getName() + " - Not enough stock. Available: " + drink.getQuantity());
-                }
-                break;
-
-            case DESSERT:
-                Dessert dessert = dessertRepository.findById(productId)
-                        .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Dessert product not found"));
-                if (dessert.getQuantity() < requestedQuantity) {
-                    throw new AppException(ErrorCode.INVALID_REQUEST,
-                        "Dessert: " + dessert.getName() + " - Not enough stock. Available: " + dessert.getQuantity());
-                }
-                break;
-
-            case FRESH:
-                Fresh fresh = freshRepository.findById(productId)
-                        .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Fresh product not found"));
-                if (fresh.getQuantity() < requestedQuantity) {
-                    throw new AppException(ErrorCode.INVALID_REQUEST,
-                        "Fresh: " + fresh.getName() + " - Not enough stock. Available: " + fresh.getQuantity());
-                }
-                break;
-
-            default:
-                throw new AppException(ErrorCode.INVALID_REQUEST, "Invalid product type");
-        }
     }
 
     /**
@@ -258,14 +212,24 @@ public class OrderService {
 
     /**
      * Cập nhật status của order (admin)
+     * ✅ Validate state transition — chỉ cho phép chuyển sang status hợp lệ
      */
     public OrderResponseDto updateOrderStatus(Long orderId, OrderStatus newStatus) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Order not found"));
 
+        OrderStatus currentStatus = order.getStatus();
+
+        // ✅ Validate state transition
+        if (!currentStatus.canTransitionTo(newStatus)) {
+            throw new AppException(ErrorCode.INVALID_REQUEST,
+                "Invalid status transition: " + currentStatus + " → " + newStatus
+                + ". Allowed: " + currentStatus.getAllowedTransitions());
+        }
+
         order.setStatus(newStatus);
         order = orderRepository.save(order);
-        log.info("✓ Order status updated: {} -> {}", orderId, newStatus);
+        log.info("✓ Order status updated: {} → {} (orderId={})", currentStatus, newStatus, orderId);
 
         return mapToDto(order);
     }
@@ -299,7 +263,9 @@ public class OrderService {
         // Hoàn kho
         try {
             for (OrderItem item : order.getItems()) {
-                restoreProductQuantity(item.getProductType(), item.getProductId(), item.getQuantity());
+                restoreProductQuantity(
+                    item.getProductType(), item.getProductId(),
+                    item.getQuantity(), item.getProductName());
             }
         } catch (Exception e) {
             log.error("❌ Failed to restore inventory for cancelled Order ID: {}", orderId, e);
@@ -362,7 +328,9 @@ public class OrderService {
         // Hoàn kho
         for (OrderItem item : order.getItems()) {
             try {
-                restoreProductQuantity(item.getProductType(), item.getProductId(), item.getQuantity());
+                restoreProductQuantity(
+                    item.getProductType(), item.getProductId(),
+                    item.getQuantity(), item.getProductName());
             } catch (Exception e) {
                 log.error("❌ Failed to restore inventory for item {} in Order {}", item.getId(), orderId, e);
             }
@@ -437,92 +405,40 @@ public class OrderService {
     }
 
     /**
-     * Giảm số lượng sản phẩm từ inventory (atomic DB update)
+     * Giảm số lượng sản phẩm từ inventory (atomic DB update).
+     * productName lấy từ OrderItem.getProductName() — đã có sẵn, không cần query lại DB.
      */
-    private void decreaseProductQuantity(ProductType productType, Long productId, Integer quantityToPurchase) {
-        String productName = null;
-        int affectedRows = 0;
-
-        switch (productType) {
-            case FOOD:
-                Food food = foodRepository.findById(productId)
-                        .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Food product not found"));
-                productName = food.getName();
-                affectedRows = foodRepository.decreaseStockIfAvailable(productId, quantityToPurchase);
-                break;
-
-            case DRINK:
-                Drink drink = drinkRepository.findById(productId)
-                        .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Drink product not found"));
-                productName = drink.getName();
-                affectedRows = drinkRepository.decreaseStockIfAvailable(productId, quantityToPurchase);
-                break;
-
-            case DESSERT:
-                Dessert dessert = dessertRepository.findById(productId)
-                        .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Dessert product not found"));
-                productName = dessert.getName();
-                affectedRows = dessertRepository.decreaseStockIfAvailable(productId, quantityToPurchase);
-                break;
-
-            case FRESH:
-                Fresh fresh = freshRepository.findById(productId)
-                        .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Fresh product not found"));
-                productName = fresh.getName();
-                affectedRows = freshRepository.decreaseStockIfAvailable(productId, quantityToPurchase);
-                break;
-
-            default:
-                throw new AppException(ErrorCode.INVALID_REQUEST, "Invalid product type: " + productType);
-        }
+    private void decreaseProductQuantity(ProductType productType, Long productId,
+                                         Integer quantityToPurchase, String productName) {
+        int affectedRows = switch (productType) {
+            case FOOD    -> foodRepository.decreaseStockIfAvailable(productId, quantityToPurchase);
+            case DRINK   -> drinkRepository.decreaseStockIfAvailable(productId, quantityToPurchase);
+            case DESSERT -> dessertRepository.decreaseStockIfAvailable(productId, quantityToPurchase);
+            case FRESH   -> freshRepository.decreaseStockIfAvailable(productId, quantityToPurchase);
+            default      -> throw new AppException(ErrorCode.INVALID_REQUEST, "Invalid product type: " + productType);
+        };
 
         if (affectedRows == 0) {
             throw new AppException(ErrorCode.INVALID_REQUEST,
-                "Out of stock for " + productType + ": " + productName + ". Requested: " + quantityToPurchase);
+                "Out of stock for " + productType + ": '" + productName + "'. Requested: " + quantityToPurchase);
         }
 
         log.info("✅ Inventory decreased: {} '{}' sold: {}", productType, productName, quantityToPurchase);
     }
 
     /**
-     * Hoàn số lượng sản phẩm về inventory khi order bị hủy (atomic DB update)
+     * Hoàn số lượng sản phẩm về inventory khi order bị hủy (atomic DB update).
+     * productName lấy từ OrderItem.getProductName() — đã có sẵn, không cần query lại DB.
      */
-    private void restoreProductQuantity(ProductType productType, Long productId, Integer quantityToRestore) {
-        String productName = null;
-        int affectedRows = 0;
-
-        switch (productType) {
-            case FOOD:
-                Food food = foodRepository.findById(productId)
-                        .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Food product not found"));
-                productName = food.getName();
-                affectedRows = foodRepository.increaseStock(productId, quantityToRestore);
-                break;
-
-            case DRINK:
-                Drink drink = drinkRepository.findById(productId)
-                        .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Drink product not found"));
-                productName = drink.getName();
-                affectedRows = drinkRepository.increaseStock(productId, quantityToRestore);
-                break;
-
-            case DESSERT:
-                Dessert dessert = dessertRepository.findById(productId)
-                        .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Dessert product not found"));
-                productName = dessert.getName();
-                affectedRows = dessertRepository.increaseStock(productId, quantityToRestore);
-                break;
-
-            case FRESH:
-                Fresh fresh = freshRepository.findById(productId)
-                        .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Fresh product not found"));
-                productName = fresh.getName();
-                affectedRows = freshRepository.increaseStock(productId, quantityToRestore);
-                break;
-
-            default:
-                throw new AppException(ErrorCode.INVALID_REQUEST, "Invalid product type: " + productType);
-        }
+    private void restoreProductQuantity(ProductType productType, Long productId,
+                                        Integer quantityToRestore, String productName) {
+        int affectedRows = switch (productType) {
+            case FOOD    -> foodRepository.increaseStock(productId, quantityToRestore);
+            case DRINK   -> drinkRepository.increaseStock(productId, quantityToRestore);
+            case DESSERT -> dessertRepository.increaseStock(productId, quantityToRestore);
+            case FRESH   -> freshRepository.increaseStock(productId, quantityToRestore);
+            default      -> throw new AppException(ErrorCode.INVALID_REQUEST, "Invalid product type: " + productType);
+        };
 
         if (affectedRows > 0) {
             log.info("✅ Inventory restored: {} '{}' quantity += {}", productType, productName, quantityToRestore);

@@ -7,9 +7,9 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+
+
 
 /**
  * Repository cho Dessert entity
@@ -21,8 +21,7 @@ public interface DessertRepository extends JpaRepository<Dessert, Long>, JpaSpec
     // Kiểm tra tên sản phẩm đã tồn tại chưa
     boolean existsByName(String name);
 
-    // Tìm kiếm sản phẩm theo tên (LIKE %name%, case-insensitive)
-    List<Dessert> findByNameContainingIgnoreCase(String name);
+
 
     /**
      * 🔥 Optimistic stock update: Decrease quantity only if enough stock available
@@ -31,7 +30,6 @@ public interface DessertRepository extends JpaRepository<Dessert, Long>, JpaSpec
      */
     @Modifying
     @Query(value = "UPDATE desserts SET quantity = quantity - :qty WHERE id = :id AND quantity >= :qty", nativeQuery = true)
-    @Transactional
     int decreaseStockIfAvailable(@Param("id") Long id, @Param("qty") Integer qty);
 
     /**
@@ -40,6 +38,5 @@ public interface DessertRepository extends JpaRepository<Dessert, Long>, JpaSpec
      */
     @Modifying
     @Query(value = "UPDATE desserts SET quantity = quantity + :qty WHERE id = :id", nativeQuery = true)
-    @Transactional
     int increaseStock(@Param("id") Long id, @Param("qty") Integer qty);
 }

@@ -80,18 +80,20 @@ public class AddressService {
     /**
      * Get address by ID
      */
-    public AddressResponseDto getAddressById(Long addressId) {
+    public AddressResponseDto getAddressById(Long addressId, Long currentUserId) {
         Address address = addressRepository.findById(addressId)
                 .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Address not found with ID: " + addressId));
+        validateAddressOwnership(address, currentUserId);
         return mapToDto(address);
     }
 
     /**
      * Update address
      */
-    public AddressResponseDto updateAddress(Long addressId, AddressRequestDto request) {
+    public AddressResponseDto updateAddress(Long addressId, AddressRequestDto request, Long currentUserId) {
         Address address = addressRepository.findById(addressId)
                 .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Address not found with ID: " + addressId));
+        validateAddressOwnership(address, currentUserId);
 
         // Validate and update address type
         if (request.getType() != null && !request.getType().isBlank()) {
@@ -127,9 +129,10 @@ public class AddressService {
     /**
      * Delete address
      */
-    public void deleteAddress(Long addressId) {
+    public void deleteAddress(Long addressId, Long currentUserId) {
         Address address = addressRepository.findById(addressId)
                 .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Address not found with ID: " + addressId));
+        validateAddressOwnership(address, currentUserId);
 
         addressRepository.delete(address);
         log.info("✓ Address deleted: {}", addressId);
@@ -162,5 +165,11 @@ public class AddressService {
                 .updatedAt(address.getUpdatedAt())
                 .phoneNumber(address.getPhoneNumber())
                 .build();
+    }
+
+    private void validateAddressOwnership(Address address, Long currentUserId) {
+        if (currentUserId == null || !address.getUser().getId().equals(currentUserId)) {
+            throw new AppException(ErrorCode.FORBIDDEN, "You do not have permission to access this address");
+        }
     }
 }

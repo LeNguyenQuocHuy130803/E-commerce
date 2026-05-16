@@ -32,6 +32,10 @@ public class PaymentConfig {
     @Value("${paypal.cancel-url}")
     private String paypalCancelUrl;
 
+    @Getter
+    @Value("${payment.vnd-usd-rate:25000}")
+    private double vndUsdRate;
+
     /**
      * RestTemplate được cấu hình với timeout để tránh thread block vô hạn
      * khi PayPal API chậm hoặc không phản hồi

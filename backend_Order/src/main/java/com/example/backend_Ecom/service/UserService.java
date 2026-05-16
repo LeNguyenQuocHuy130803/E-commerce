@@ -3,6 +3,7 @@ package com.example.backend_Ecom.service;
 import com.example.backend_Ecom.dto.*;
 import com.example.backend_Ecom.entity.User;
 import com.example.backend_Ecom.entity.VerificationToken;
+import com.example.backend_Ecom.enums.RoleName;
 import com.example.backend_Ecom.enums.UserStatus;
 import com.example.backend_Ecom.exception.AppException;
 import com.example.backend_Ecom.exception.ErrorCode;
@@ -19,9 +20,10 @@ import com.example.backend_Ecom.repository.RoleRepository;
 import com.example.backend_Ecom.repository.VerificationTokenRepository;
 import com.example.backend_Ecom.entity.Role;
 import com.example.backend_Ecom.security.JwtService;
-import com.example.backend_Ecom.service.FileUploadService;
-import com.example.backend_Ecom.service.EmailService;
-import com.example.backend_Ecom.service.OtpService;
+import com.example.backend_Ecom.security.UserPrincipal;
+
+
+
 
 import java.util.stream.Collectors;
 import java.util.List;
@@ -144,10 +146,10 @@ public class UserService {
 
         user = this.userJpaRepository.save(user);
 
-        Role customerRole = roleRepository.findByName("Customers")
+        Role customerRole = roleRepository.findByName(RoleName.CUSTOMER.name())
                 .orElseThrow(() -> {
-                    log.error("Role Customers not found in database");
-                    return new AppException(ErrorCode.ROLE_NOT_FOUND, "Role Customers not found");
+                    log.error("Role {} not found in database", RoleName.CUSTOMER.name());
+                    return new AppException(ErrorCode.ROLE_NOT_FOUND, "Role " + RoleName.CUSTOMER.name() + " not found");
                 });
         user.getRoles().add(customerRole);
         user = this.userJpaRepository.save(user);
@@ -504,7 +506,9 @@ public class UserService {
     /**
      * Get user by ID
      */
-    public UserResponseDto getUserById(Long id) {
+    public UserResponseDto getUserById(Long id, UserPrincipal currentUser) {
+        validateUserAccess(id, currentUser);
+
         User user = userJpaRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND, "User not found with ID: " + id));
         return mapToDto(user);
@@ -513,7 +517,8 @@ public class UserService {
     /**
      * Update user information
      */
-    public UserResponseDto updateUser(Long id, UserUpdateRequestDto request) {
+    public UserResponseDto updateUser(Long id, UserUpdateRequestDto request, UserPrincipal currentUser) {
+        validateUserAccess(id, currentUser);
         log.info("Updating user: {}", id);
         
         User user = userJpaRepository.findById(id)
@@ -569,6 +574,19 @@ public class UserService {
         log.info("User updated successfully: {}", id);
         
         return mapToDto(user);
+    }
+
+    private void validateUserAccess(Long requestedUserId, UserPrincipal currentUser) {
+        if (currentUser == null) {
+            throw new AppException(ErrorCode.UNAUTHORIZED, "Authentication required");
+        }
+
+        boolean isOwner = currentUser.getId().equals(requestedUserId);
+        boolean isAdmin = currentUser.hasRole(RoleName.ADMIN.name());
+
+        if (!isOwner && !isAdmin) {
+            throw new AppException(ErrorCode.FORBIDDEN, "You do not have permission to access this user");
+        }
     }
 
 //change password

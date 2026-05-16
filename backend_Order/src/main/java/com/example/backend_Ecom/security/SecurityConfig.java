@@ -39,16 +39,25 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+
+                        // ✅ USER ADMIN ENDPOINTS
+                        .requestMatchers(HttpMethod.GET, "/api/users").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/users/paging").hasRole("ADMIN")
                         
                         // ✅ ADDRESS ENDPOINTS - CẦN AUTHENTICATION
                         .requestMatchers("/api/users/addresses/**").authenticated()
+
+                        // ✅ USER PERSONAL ENDPOINTS - CẦN AUTHENTICATION + OWNERSHIP CHECK TRONG SERVICE
+                        .requestMatchers(HttpMethod.GET, "/api/users/*").authenticated()
+                        .requestMatchers(HttpMethod.PATCH, "/api/users/*").authenticated()
                                                 
                         // ✅ PUBLIC ENDPOINTS
-                        .requestMatchers("/api/users/**").permitAll()
                         .requestMatchers( "/api/foods/**", "/api/drinks/**", "/api/desserts/**").permitAll()
                         
                         // ✅ CART, ORDER, PAYMENT - CẦN AUTHENTICATION
                         .requestMatchers("/api/carts/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/orders/admin/paging").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/orders/*/status").hasRole("ADMIN")
                         .requestMatchers("/api/orders/**").authenticated()
                         .requestMatchers("/api/stocks/**").authenticated()
                         .requestMatchers("/api/payments/**").authenticated()

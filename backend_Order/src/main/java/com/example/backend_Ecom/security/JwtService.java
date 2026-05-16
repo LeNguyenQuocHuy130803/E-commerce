@@ -38,7 +38,9 @@ public class JwtService {
         Map<String, Object> claims = new HashMap<>();
         claims.put("id", user.getId());
         claims.put("type", "access_token");
-
+        claims.put("roles", user.getRoles().stream()
+                .map(role -> role.getName())
+                .toList());
         //  cách cũ lấy time tại file
         // long jwtExpiration = 7 * 24 * 60 * 60 * 1000; // 7 days
         // return createToken(claims, user.getEmail(), jwtExpiration);
@@ -69,6 +71,9 @@ public class JwtService {
         Map<String, Object> claims = new HashMap<>();
         claims.put("id", user.getId());
         claims.put("type", "refresh_token");
+        claims.put("roles", user.getRoles().stream()
+                .map(role -> role.getName())
+                .toList());
 
         //  tường tự như access token, lấy time tại file application.properties 
         return createToken(claims, user.getEmail(), jwtProperties.getRefreshTokenExpiration());

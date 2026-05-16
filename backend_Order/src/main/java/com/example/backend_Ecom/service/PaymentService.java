@@ -12,10 +12,12 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
+import com.example.backend_Ecom.exception.AppException;
+import com.example.backend_Ecom.exception.ErrorCode;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.Base64;
+
 
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -88,7 +90,7 @@ public class PaymentService {
             // Check duplicate: tránh tạo 2 transaction cùng PayPal ID
             if (paymentTransactionRepository.existsByTxnRef(paypalOrderId)) {
                 log.error("❌ Transaction already exists for PayPalOrderId: {}", paypalOrderId);
-                throw new RuntimeException("Transaction already exists for this PayPal Order ID!");
+                throw new AppException(ErrorCode.INVALID_REQUEST, "Transaction already exists for this PayPal Order ID!");
             }
 
             PaymentTransaction txn = PaymentTransaction.builder()
@@ -123,7 +125,7 @@ public class PaymentService {
 
         } catch (Exception e) {
             log.error("❌ PayPal create error", e);
-            throw new RuntimeException(e.getMessage());
+            throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR, "PayPal create order failed: " + e.getMessage());
         }
     }
 
@@ -168,7 +170,7 @@ public class PaymentService {
 
             if (orderId == null) {
                 log.error("❌ [FATAL] Cannot determine orderId from PayPal or DB — PayPalOrderId: {}", paypalOrderId);
-                throw new RuntimeException("Invalid PayPal order - missing order ID");
+                throw new AppException(ErrorCode.INVALID_REQUEST, "Invalid PayPal order - missing order ID");
             }
 
             // ============ STEP 4: Security Verification ============
@@ -176,7 +178,7 @@ public class PaymentService {
             orderRepository.findByIdAndUserId(finalOrderId, userId)
                     .orElseThrow(() -> {
                         log.error("❌ [SECURITY] userId {} tried to capture order {} that doesn't belong to them", userId, finalOrderId);
-                        return new RuntimeException("Order not found or access denied");
+                        return new AppException(ErrorCode.FORBIDDEN, "Order not found or access denied");
                     });
 
             log.info("✅ [VERIFIED] userId={}, orderId={}, paypalStatus={}", userId, orderId, paypalStatus);
@@ -198,7 +200,7 @@ public class PaymentService {
 
         } catch (Exception e) {
             log.error("❌ [ERROR] PayPal capture failed for paypalOrderId={}, userId={}", paypalOrderId, userId, e);
-            throw new RuntimeException(e.getMessage());
+            throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR, "PayPal capture failed: " + e.getMessage());
         }
     }
 
@@ -236,7 +238,7 @@ public class PaymentService {
                 );
             }
 
-            throw new RuntimeException("Payment capture failed: " + e.getMessage());
+            throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR, "Payment capture failed: " + e.getMessage());
         }
     }
 
@@ -437,6 +439,6 @@ public class PaymentService {
     }
 
     private double convertVNDtoUSD(double amountVND) {
-        return Math.round((amountVND / 25000.0) * 100.0) / 100.0;
+        return Math.round((amountVND / config.getVndUsdRate()) * 100.0) / 100.0;
     }
 }

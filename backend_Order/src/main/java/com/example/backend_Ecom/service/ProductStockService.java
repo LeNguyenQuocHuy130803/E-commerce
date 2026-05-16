@@ -59,74 +59,43 @@ public class ProductStockService {
 
     /**
      * Check stock cho 1 sản phẩm duy nhất
+     * Consolidated: không cần 4 hàm riêng vì logic hoàn toàn giống nhau, chỉ khác repository
      */
     private StockCheckResponseDto.StockStatus checkSingleProduct(
             ProductType productType, Long productId, Integer requestedQuantity) {
 
+        String productName;
+        Integer availableQuantity;
+
         switch (productType) {
-            case FOOD:
-                return checkFoodStock(productId, requestedQuantity);
-            case DRINK:
-                return checkDrinkStock(productId, requestedQuantity);
-            case DESSERT:
-                return checkDessertStock(productId, requestedQuantity);
-            case FRESH:
-                return checkFreshStock(productId, requestedQuantity);
-            default:
-                throw new AppException(ErrorCode.INVALID_REQUEST, "Invalid product type");
+            case FOOD -> {
+                Food food = foodRepository.findById(productId)
+                        .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Food product not found"));
+                productName = food.getName();
+                availableQuantity = food.getQuantity();
+            }
+            case DRINK -> {
+                Drink drink = drinkRepository.findById(productId)
+                        .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Drink product not found"));
+                productName = drink.getName();
+                availableQuantity = drink.getQuantity();
+            }
+            case DESSERT -> {
+                Dessert dessert = dessertRepository.findById(productId)
+                        .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Dessert product not found"));
+                productName = dessert.getName();
+                availableQuantity = dessert.getQuantity();
+            }
+            case FRESH -> {
+                Fresh fresh = freshRepository.findById(productId)
+                        .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Fresh product not found"));
+                productName = fresh.getName();
+                availableQuantity = fresh.getQuantity();
+            }
+            default -> throw new AppException(ErrorCode.INVALID_REQUEST, "Invalid product type: " + productType);
         }
-    }
 
-    private StockCheckResponseDto.StockStatus checkFoodStock(Long productId, Integer requestedQuantity) {
-        Food food = foodRepository.findById(productId)
-                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Food product not found"));
-
-        return buildStockStatus(
-            ProductType.FOOD,
-            productId,
-            food.getName(),
-            requestedQuantity,
-            food.getQuantity()
-        );
-    }
-
-    private StockCheckResponseDto.StockStatus checkDrinkStock(Long productId, Integer requestedQuantity) {
-        Drink drink = drinkRepository.findById(productId)
-                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Drink product not found"));
-
-        return buildStockStatus(
-            ProductType.DRINK,
-            productId,
-            drink.getName(),
-            requestedQuantity,
-            drink.getQuantity()
-        );
-    }
-
-    private StockCheckResponseDto.StockStatus checkDessertStock(Long productId, Integer requestedQuantity) {
-        Dessert dessert = dessertRepository.findById(productId)
-                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Dessert product not found"));
-
-        return buildStockStatus(
-            ProductType.DESSERT,
-            productId,
-            dessert.getName(),
-            requestedQuantity,
-            dessert.getQuantity()
-        );
-    }
-
-    private StockCheckResponseDto.StockStatus checkFreshStock(Long productId, Integer requestedQuantity) {
-        Fresh fresh = freshRepository.findById(productId)
-                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Fresh product not found"));
-
-        return buildStockStatus(
-            ProductType.FRESH,
-            productId,
-            fresh.getName(),
-            requestedQuantity,
-            fresh.getQuantity()
-        );
+        return buildStockStatus(productType, productId, productName, requestedQuantity, availableQuantity);
     }
 
     /**

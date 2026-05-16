@@ -3,14 +3,14 @@ package com.example.backend_Ecom.controller;
 import com.example.backend_Ecom.dto.UserResponseDto;
 import com.example.backend_Ecom.dto.UserUpdateRequestDto;
 import com.example.backend_Ecom.dto.PaginatedUserResponseDto;
-import com.example.backend_Ecom.exception.AppException;
-import com.example.backend_Ecom.exception.ErrorCode;
+
+
 import com.example.backend_Ecom.security.UserPrincipal;
 import com.example.backend_Ecom.service.UserService;
 import io.swagger.v3.oas.annotations.Parameter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -59,8 +59,10 @@ public class UserController {
      * Authorization: User can only access their own data or admins can access any user
      */
     @GetMapping("/{id}")
-    public ResponseEntity<UserResponseDto> getUserById( @PathVariable Long id) {
-        UserResponseDto user = userService.getUserById(id);
+    public ResponseEntity<UserResponseDto> getUserById(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        UserResponseDto user = userService.getUserById(id, principal);
         return ResponseEntity.ok(user);
     }
 
@@ -73,9 +75,10 @@ public class UserController {
     @PatchMapping(value = "/{id}", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<UserResponseDto> updateUser(
             @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal,
             @ModelAttribute UserUpdateRequestDto request) {
         
-        UserResponseDto updatedUser = userService.updateUser(id, request);
+        UserResponseDto updatedUser = userService.updateUser(id, request, principal);
         return ResponseEntity.ok(updatedUser);
     }
 }

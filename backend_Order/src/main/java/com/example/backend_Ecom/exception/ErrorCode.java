@@ -20,8 +20,6 @@ public enum ErrorCode {
     EMAIL_NOT_VERIFIED(401, "EMAIL_NOT_VERIFIED", "Email address is not verified"),
     
     // Validation (400)
-    BAD_REQUEST(400, "BAD_REQUEST", "Invalid request"),
-    INVALID_INPUT(400, "INVALID_INPUT", "Invalid input provided"),
     INVALID_REQUEST(400, "INVALID_REQUEST", "Invalid request"),
     EMAIL_ALREADY_EXISTS(400, "EMAIL_ALREADY_EXISTS", "Email already exists"),
     PHONE_ALREADY_EXISTS(400, "PHONE_ALREADY_EXISTS", "Phone number already exists"),
@@ -33,9 +31,7 @@ public enum ErrorCode {
     RESOURCE_NOT_FOUND(404, "RESOURCE_NOT_FOUND", "Resource not found"),
     
     // Internal Server Error (500)
-    INTERNAL_SERVER_ERROR(500, "INTERNAL_SERVER_ERROR", "An unexpected error occurred"),
-    DATABASE_ERROR(500, "DATABASE_ERROR", "Database operation failed"),
-    CONFIGURATION_ERROR(500, "CONFIGURATION_ERROR", "Configuration error");
+    INTERNAL_SERVER_ERROR(500, "INTERNAL_SERVER_ERROR", "An unexpected error occurred");
 
     private final int httpStatus;
     private final String code;

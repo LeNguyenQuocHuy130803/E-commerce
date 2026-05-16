@@ -87,12 +87,6 @@ public class AuthController {
             @Valid @RequestBody ChangePassRequestDto request
     )
     {
-//        if (principal == null) {
-//            throw new com.example.backend_Ecom.exception.AppException(
-//                    com.example.backend_Ecom.exception.ErrorCode.UNAUTHORIZED,
-//                    "Authentication required"
-//            );
-//        }
 
         ChangePassResponseDto response = userService.changePassword(principal.getId(), request);
         return ResponseEntity.ok(response);

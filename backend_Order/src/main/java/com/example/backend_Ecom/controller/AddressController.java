@@ -10,7 +10,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
@@ -45,9 +44,10 @@ public class AddressController {
     @GetMapping("/{addressId}")
     @Operation(summary = "Get address by ID")
     public ResponseEntity<AddressResponseDto> getAddressById(
+            @AuthenticationPrincipal UserPrincipal principal,
             @Parameter(description = "Address ID", example = "1")
             @PathVariable Long addressId) {
-        return ResponseEntity.ok(addressService.getAddressById(addressId));
+        return ResponseEntity.ok(addressService.getAddressById(addressId, principal.getId()));
     }
 
     /**
@@ -80,10 +80,11 @@ public class AddressController {
     @PatchMapping("/{addressId}")
     @Operation(summary = "Update address")
     public ResponseEntity<AddressResponseDto> updateAddress(
+            @AuthenticationPrincipal UserPrincipal principal,
             @Parameter(description = "Address ID", example = "1")
             @PathVariable Long addressId,
             @Valid @RequestBody AddressRequestDto request) {
-        return ResponseEntity.ok(addressService.updateAddress(addressId, request));
+        return ResponseEntity.ok(addressService.updateAddress(addressId, request, principal.getId()));
     }
 
     /**
@@ -94,9 +95,10 @@ public class AddressController {
     @DeleteMapping("/{addressId}")
     @Operation(summary = "Delete address")
     public ResponseEntity<MessageResponseDto> deleteAddress(
+            @AuthenticationPrincipal UserPrincipal principal,
             @Parameter(description = "Address ID", example = "1")
             @PathVariable Long addressId) {
-        addressService.deleteAddress(addressId);
+        addressService.deleteAddress(addressId, principal.getId());
         return ResponseEntity.ok(MessageResponseDto.builder()
                 .success(true)
                 .message("Address deleted successfully")

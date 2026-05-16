@@ -12,7 +12,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
@@ -71,7 +70,6 @@ public class OrderController {
      * Lấy tất cả orders (admin only)
      */
     @Operation(summary = "Get all orders with pagination (admin only)")
-    @PreAuthorize("hasAuthority('ROLE_Administrators')")
     @GetMapping("/admin/paging")
     public ResponseEntity<PaginatedOrderResponseDto> getAllOrders(
             @Parameter(description = "Page number (1-based)", example = "1")
@@ -86,7 +84,6 @@ public class OrderController {
      * Cập nhật status của order (admin only)
      */
     @Operation(summary = "Update order status (admin only)")
-    @PreAuthorize("hasAuthority('ROLE_Administrators')")
     @PatchMapping("/{orderId}/status")
     public ResponseEntity<OrderResponseDto> updateOrderStatus(
             @Parameter(description = "Order ID") @PathVariable @Min(value = 1, message = "Order ID must be positive") Long orderId,

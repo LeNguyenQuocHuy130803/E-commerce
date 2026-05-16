@@ -43,7 +43,7 @@ public class EmailService {
             );
 
             javaMailSender.send(message);
-            log.info("✓ Verification email sent to: {} with OTP: {}", email, otp);
+            log.info("✓ Verification email sent to: {}", email);
         } catch (Exception e) {
             log.error("✗ Failed to send verification email to {}: {}", email, e.getMessage());
             throw new AppException(ErrorCode.APP_EXCEPTION, "Failed to send verification email");
@@ -98,7 +98,7 @@ public class EmailService {
             );
 
             javaMailSender.send(message);
-            log.info("✓ Password reset email sent to: {} with OTP: {}", email, otp);
+            log.info("✓ Password reset email sent to: {}", email);
         } catch (Exception e) {
             log.error("✗ Failed to send password reset email to {}: {}", email, e.getMessage());
             throw new AppException(ErrorCode.APP_EXCEPTION, "Failed to send password reset email");

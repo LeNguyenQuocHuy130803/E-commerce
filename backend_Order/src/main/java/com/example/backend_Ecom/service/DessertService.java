@@ -225,7 +225,7 @@ public class DessertService {
                 .collect(Collectors.toList());
     }
 
-    // Hàm resolveImage đã bị xóa bỏ vì không hợp lệ với Transactions
+
 
     /**
      * Helper: Convert Dessert entity sang DessertResponseDto

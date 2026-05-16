@@ -43,17 +43,29 @@ public class SecurityConfig {
                         // ✅ USER ADMIN ENDPOINTS
                         .requestMatchers(HttpMethod.GET, "/api/users").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/users/paging").hasRole("ADMIN")
-                        
+
                         // ✅ ADDRESS ENDPOINTS - CẦN AUTHENTICATION
                         .requestMatchers("/api/users/addresses/**").authenticated()
 
                         // ✅ USER PERSONAL ENDPOINTS - CẦN AUTHENTICATION + OWNERSHIP CHECK TRONG SERVICE
                         .requestMatchers(HttpMethod.GET, "/api/users/*").authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/api/users/*").authenticated()
-                                                
-                        // ✅ PUBLIC ENDPOINTS
-                        .requestMatchers( "/api/foods/**", "/api/drinks/**", "/api/desserts/**").permitAll()
-                        
+
+                        // ✅ PUBLIC GET — xem sản phẩm / blog không cần login
+                        .requestMatchers(HttpMethod.GET, "/api/foods/**", "/api/drinks/**", "/api/desserts/**", "/api/freshs/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/blogs/**").permitAll()
+
+                        // ✅ ADMIN-ONLY — tạo / sửa / xóa sản phẩm và blog (chỉ ADMIN mới được)
+                        .requestMatchers(HttpMethod.POST, "/api/foods/**", "/api/drinks/**", "/api/desserts/**", "/api/freshs/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/foods/**", "/api/drinks/**", "/api/desserts/**", "/api/freshs/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/foods/**", "/api/drinks/**", "/api/desserts/**", "/api/freshs/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/blogs").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/blogs/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/blogs/**").hasRole("ADMIN")
+
+                        // ✅ BLOG REVIEW — user đăng nhập mới được đánh giá
+                        .requestMatchers(HttpMethod.POST, "/api/blogs/*/reviews").authenticated()
+
                         // ✅ CART, ORDER, PAYMENT - CẦN AUTHENTICATION
                         .requestMatchers("/api/carts/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/orders/admin/paging").hasRole("ADMIN")
@@ -62,7 +74,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/stocks/**").authenticated()
                         .requestMatchers("/api/payments/**").authenticated()
 
-                        .anyRequest().permitAll())
+                        // ✅ MẶC ĐỊNH: Phải đăng nhập (bịt lỗ permitAll cũ)
+                        .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

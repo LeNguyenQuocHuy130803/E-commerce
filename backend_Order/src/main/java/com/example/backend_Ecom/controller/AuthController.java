@@ -25,7 +25,7 @@ public class AuthController {
      * User login endpoint
      */
     @PostMapping("/login")
-    public ResponseEntity<LoginResponseDto> login(@Valid @RequestBody LoginRequestDto request) throws Exception {
+    public ResponseEntity<LoginResponseDto> login(@Valid @RequestBody LoginRequestDto request) {
         LoginResponseDto result = this.userService.login(request);
         return ResponseEntity.ok(result);
     }
@@ -34,7 +34,7 @@ public class AuthController {
      * User registration endpoint
      */
     @PostMapping("/register")
-    public ResponseEntity<RegisterResponseDto> register(@Valid @RequestBody RegisterRequestDto request) throws Exception {
+    public ResponseEntity<RegisterResponseDto> register(@Valid @RequestBody RegisterRequestDto request) {
         RegisterResponseDto result = this.userService.register(request);
         return ResponseEntity.ok(result);
     }
@@ -43,7 +43,7 @@ public class AuthController {
      * Refresh access token endpoint
      */
     @PostMapping("/refresh-token")
-    public ResponseEntity<RefreshTokenResponseDto> refreshToken(@Valid @RequestBody RefreshTokenRequestDto request) throws Exception {
+    public ResponseEntity<RefreshTokenResponseDto> refreshToken(@Valid @RequestBody RefreshTokenRequestDto request) {
         RefreshTokenResponseDto result = this.userService.refreshToken(request);
         return ResponseEntity.ok(result);
     }

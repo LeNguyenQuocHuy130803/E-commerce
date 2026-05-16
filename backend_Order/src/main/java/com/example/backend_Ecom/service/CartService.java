@@ -57,10 +57,10 @@ public class CartService {
                 ProductInfo freshInfo = getProductInfo(item.getProductType(), item.getProductId());
                 
                 // Cập nhật nếu Admin mới đổi Giá hoặc Tên món
-                if (!item.getPriceAtTime().equals(freshInfo.getPrice()) || 
-                    !item.getProductName().equals(freshInfo.getName())) {
-                    item.setPriceAtTime(freshInfo.getPrice());
-                    item.setProductName(freshInfo.getName());
+                if (!item.getPriceAtTime().equals(freshInfo.price()) || 
+                    !item.getProductName().equals(freshInfo.name())) {
+                    item.setPriceAtTime(freshInfo.price());
+                    item.setProductName(freshInfo.name());
                     isModified = true;
                 }
             } catch (AppException e) {
@@ -146,9 +146,9 @@ public class CartService {
         ProductInfo productInfo = getProductInfo(request.getProductType(), request.getProductId());
 
         // Check if product still has stock
-        if (productInfo.getQuantity() < request.getQuantity()) {
+        if (productInfo.quantity() < request.getQuantity()) {
             throw new AppException(ErrorCode.INVALID_REQUEST, 
-                "Not enough stock. Available: " + productInfo.getQuantity());
+                "Not enough stock. Available: " + productInfo.quantity());
         }
 
         // Check if item already in cart - if yes, update quantity
@@ -161,9 +161,9 @@ public class CartService {
         if (existingItem != null) {
             // Update quantity
             int newQuantity = existingItem.getQuantity() + request.getQuantity();
-            if (productInfo.getQuantity() < newQuantity) {
+            if (productInfo.quantity() < newQuantity) {
                 throw new AppException(ErrorCode.INVALID_REQUEST, 
-                    "Not enough stock. Available: " + productInfo.getQuantity());
+                    "Not enough stock. Available: " + productInfo.quantity());
             }
             existingItem.setQuantity(newQuantity);
         } else {
@@ -172,9 +172,9 @@ public class CartService {
                     .cart(cart)
                     .productType(request.getProductType())
                     .productId(request.getProductId())
-                    .productName(productInfo.getName())
-                    .imageUrl(productInfo.getImageUrl())
-                    .priceAtTime(productInfo.getPrice())
+                    .productName(productInfo.name())
+                    .imageUrl(productInfo.imageUrl())
+                    .priceAtTime(productInfo.price())
                     .quantity(request.getQuantity())
                     .build();
             cart.getItems().add(newItem);
@@ -207,9 +207,9 @@ public class CartService {
 
         // Check stock
         ProductInfo productInfo = getProductInfo(cartItem.getProductType(), cartItem.getProductId());
-        if (productInfo.getQuantity() < quantity) {
+        if (productInfo.quantity() < quantity) {
             throw new AppException(ErrorCode.INVALID_REQUEST, 
-                "Not enough stock. Available: " + productInfo.getQuantity());
+                "Not enough stock. Available: " + productInfo.quantity());
         }
 
         cartItem.setQuantity(quantity);
@@ -302,35 +302,7 @@ public class CartService {
     }
 
     /**
-     * Helper class to store product info (name, price, quantity, imageUrl)
+     * Immutable product info record (name, price, quantity, imageUrl)
      */
-    private static class ProductInfo {
-        private final String name;
-        private final java.math.BigDecimal price;
-        private final Integer quantity;
-        private final String imageUrl;
-
-        public ProductInfo(String name, java.math.BigDecimal price, Integer quantity, String imageUrl) {
-            this.name = name;
-            this.price = price;
-            this.quantity = quantity;
-            this.imageUrl = imageUrl;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public java.math.BigDecimal getPrice() {
-            return price;
-        }
-
-        public Integer getQuantity() {
-            return quantity;
-        }
-
-        public String getImageUrl() {
-            return imageUrl;
-        }
-    }
+    private record ProductInfo(String name, java.math.BigDecimal price, Integer quantity, String imageUrl) {}
 }

@@ -58,7 +58,7 @@ public class UserService {
     /**
      * Authenticate user with email and password
      */
-    public LoginResponseDto login(LoginRequestDto request) throws Exception {
+    public LoginResponseDto login(LoginRequestDto request) {
         log.info("Login attempt for email: {}", request.getEmail());
         
         User user = userJpaRepository.findByEmail(request.getEmail())
@@ -119,7 +119,7 @@ public class UserService {
     /**
      * Register new user
      */
-    public RegisterResponseDto register(RegisterRequestDto request) throws Exception {
+    public RegisterResponseDto register(RegisterRequestDto request) {
         log.info("Registration attempt for email: {}", request.getEmail());
         
         if (userJpaRepository.existsByEmail(request.getEmail())){
@@ -344,7 +344,7 @@ public class UserService {
     /**
      * Refresh access token using refresh token
      */
-    public RefreshTokenResponseDto refreshToken(RefreshTokenRequestDto request) throws Exception {
+    public RefreshTokenResponseDto refreshToken(RefreshTokenRequestDto request) {
         log.info("Refresh token request");
         
         String refreshToken = request.getRefreshToken();

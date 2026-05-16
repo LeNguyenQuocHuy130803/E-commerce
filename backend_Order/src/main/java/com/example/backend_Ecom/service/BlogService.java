@@ -82,24 +82,50 @@ public class BlogService {
         Blog blog = blogRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND));
 
-        // Xử lý xoay vòng ảnh: Upload ảnh mới thành công -> Xóa ảnh cũ trên Cloudinary
-        if (request.getAvatar() != null && !request.getAvatar().isEmpty()) {
-            String oldUrl = blog.getAvatar();
-            blog.setAvatar(fileUploadService.uploadImage(request.getAvatar()));
-            if (oldUrl != null)
-                fileUploadService.deleteImage(oldUrl);
+        String oldAvatarUrl = blog.getAvatar();
+        String newlyUploadedUrl = null;
+
+        try {
+            // Upload ảnh mới (nếu có)
+            if (request.getAvatar() != null && !request.getAvatar().isEmpty()) {
+                newlyUploadedUrl = fileUploadService.uploadImage(request.getAvatar());
+                blog.setAvatar(newlyUploadedUrl);
+            }
+
+            if (request.getTitle() != null)
+                blog.setTitle(request.getTitle());
+            if (request.getSummary() != null)
+                blog.setSummary(request.getSummary());
+            if (request.getContent() != null)
+                blog.setContent(request.getContent());
+            if (request.getCategory() != null)
+                blog.setCategory(request.getCategory());
+
+            blog = blogRepository.save(blog);
+
+            // CHỈ XÓA ẢNH CŨ KHI SAVE THÀNH CÔNG
+            if (newlyUploadedUrl != null && oldAvatarUrl != null && !oldAvatarUrl.isEmpty()) {
+                try {
+                    fileUploadService.deleteImage(oldAvatarUrl);
+                } catch (Exception ex) {
+                    log.error("Failed to delete old blog avatar: {}", oldAvatarUrl);
+                }
+            }
+
+            log.info("✓ Blog updated: {}", id);
+            return mapToDto(blog);
+
+        } catch (Exception e) {
+            // COMPENSATING TRANSACTION: Xóa ảnh mới nếu DB save fail
+            if (newlyUploadedUrl != null) {
+                try {
+                    fileUploadService.deleteImage(newlyUploadedUrl);
+                } catch (Exception ex) {
+                    log.error("Failed to delete orphaned new avatar: {}", newlyUploadedUrl);
+                }
+            }
+            throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR, "Failed to update blog: " + e.getMessage());
         }
-
-        if (request.getTitle() != null)
-            blog.setTitle(request.getTitle());
-        if (request.getSummary() != null)
-            blog.setSummary(request.getSummary());
-        if (request.getContent() != null)
-            blog.setContent(request.getContent());
-        if (request.getCategory() != null)
-            blog.setCategory(request.getCategory());
-
-        return mapToDto(blogRepository.save(blog));
     }
 
     // Helper method để code nhìn gọn hơn

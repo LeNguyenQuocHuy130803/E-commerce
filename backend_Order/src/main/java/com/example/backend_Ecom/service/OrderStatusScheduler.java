@@ -80,9 +80,13 @@ public class OrderStatusScheduler {
         );
 
         for (Order order : paidOrders) {
-            order.setStatus(OrderStatus.CONFIRMED);
-            orderRepository.save(order);
-            log.info("✅ Order {} transitioned: PAID → CONFIRMED", order.getId());
+            if (order.getStatus().canTransitionTo(OrderStatus.CONFIRMED)) {
+                order.setStatus(OrderStatus.CONFIRMED);
+                orderRepository.save(order);
+                log.info("✅ Order {} transitioned: PAID → CONFIRMED", order.getId());
+            } else {
+                log.warn("⚠️ Order {} skipped: cannot transition {} → CONFIRMED", order.getId(), order.getStatus());
+            }
         }
     }
 
@@ -100,9 +104,13 @@ public class OrderStatusScheduler {
         );
 
         for (Order order : confirmedOrders) {
-            order.setStatus(OrderStatus.PREPARING);
-            orderRepository.save(order);
-            log.info("🔄 Order {} transitioned: CONFIRMED → PREPARING", order.getId());
+            if (order.getStatus().canTransitionTo(OrderStatus.PREPARING)) {
+                order.setStatus(OrderStatus.PREPARING);
+                orderRepository.save(order);
+                log.info("🔄 Order {} transitioned: CONFIRMED → PREPARING", order.getId());
+            } else {
+                log.warn("⚠️ Order {} skipped: cannot transition {} → PREPARING", order.getId(), order.getStatus());
+            }
         }
     }
 
@@ -120,9 +128,13 @@ public class OrderStatusScheduler {
         );
 
         for (Order order : preparingOrders) {
-            order.setStatus(OrderStatus.READY);
-            orderRepository.save(order);
-            log.info("🔄 Order {} transitioned: PREPARING → READY", order.getId());
+            if (order.getStatus().canTransitionTo(OrderStatus.READY)) {
+                order.setStatus(OrderStatus.READY);
+                orderRepository.save(order);
+                log.info("🔄 Order {} transitioned: PREPARING → READY", order.getId());
+            } else {
+                log.warn("⚠️ Order {} skipped: cannot transition {} → READY", order.getId(), order.getStatus());
+            }
         }
     }
 
@@ -140,9 +152,13 @@ public class OrderStatusScheduler {
         );
 
         for (Order order : readyOrders) {
-            order.setStatus(OrderStatus.DELIVERING);
-            orderRepository.save(order);
-            log.info("🚚 Order {} transitioned: READY → DELIVERING", order.getId());
+            if (order.getStatus().canTransitionTo(OrderStatus.DELIVERING)) {
+                order.setStatus(OrderStatus.DELIVERING);
+                orderRepository.save(order);
+                log.info("🚚 Order {} transitioned: READY → DELIVERING", order.getId());
+            } else {
+                log.warn("⚠️ Order {} skipped: cannot transition {} → DELIVERING", order.getId(), order.getStatus());
+            }
         }
     }
 
@@ -160,9 +176,13 @@ public class OrderStatusScheduler {
         );
 
         for (Order order : deliveringOrders) {
-            order.setStatus(OrderStatus.DELIVERED);
-            orderRepository.save(order);
-            log.info("✅ Order {} transitioned: DELIVERING → DELIVERED", order.getId());
+            if (order.getStatus().canTransitionTo(OrderStatus.DELIVERED)) {
+                order.setStatus(OrderStatus.DELIVERED);
+                orderRepository.save(order);
+                log.info("✅ Order {} transitioned: DELIVERING → DELIVERED", order.getId());
+            } else {
+                log.warn("⚠️ Order {} skipped: cannot transition {} → DELIVERED", order.getId(), order.getStatus());
+            }
         }
     }
 }

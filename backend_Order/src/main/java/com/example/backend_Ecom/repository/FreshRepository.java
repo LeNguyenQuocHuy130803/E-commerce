@@ -8,9 +8,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-
-
-
 /**
  * Repository cho Fresh entity
  * JpaSpecificationExecutor: cho phép dynamic query dùng Specification

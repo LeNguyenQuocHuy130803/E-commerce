@@ -211,7 +211,7 @@ public class FoodService {
                 .collect(Collectors.toList());
     }
 
-    // Hàm resolveImage đã bị xóa bỏ vì không hợp lệ với Transactions
+
 
     private FoodResponseDto mapToDto(Food food) {
 

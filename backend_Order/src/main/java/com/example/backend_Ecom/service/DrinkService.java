@@ -207,7 +207,7 @@ public class DrinkService {
                 .collect(Collectors.toList());
     }
 
-    // Hàm resolveImage đã bị xóa bỏ vì không hợp lệ với Transactions
+
 
     private DrinkResponseDto mapToDto(Drink drink) {
 

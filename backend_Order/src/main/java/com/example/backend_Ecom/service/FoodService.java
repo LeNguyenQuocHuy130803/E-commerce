@@ -7,214 +7,83 @@ import com.example.backend_Ecom.entity.Food;
 import com.example.backend_Ecom.enums.FoodCategory;
 import com.example.backend_Ecom.enums.Region;
 import com.example.backend_Ecom.enums.Unit;
-import com.example.backend_Ecom.exception.AppException;
-import com.example.backend_Ecom.exception.ErrorCode;
 import com.example.backend_Ecom.repository.FoodRepository;
 import com.example.backend_Ecom.specification.FoodSpecification;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
-import java.util.stream.Collectors;
-import org.springframework.transaction.annotation.Transactional;
 
-@Slf4j
 @RequiredArgsConstructor
 @Service
-public class FoodService {
+public class FoodService extends BaseProductService<Food, FoodRequestDto, FoodResponseDto, PaginatedFoodResponseDto> {
 
     private final FoodRepository foodRepository;
-    private final FileUploadService fileUploadService;
 
+    @Override
+    protected JpaRepository<Food, Long> getRepository() { return foodRepository; }
 
+    @Override
+    protected JpaSpecificationExecutor<Food> getSpecificationExecutor() { return foodRepository; }
 
-    @Transactional
-    public FoodResponseDto createFood(FoodRequestDto request) {
+    @Override
+    protected String getProductTypeName() { return "Food"; }
 
-        if (request.getName() == null || request.getName().trim().isEmpty()) {
-            throw new AppException(ErrorCode.INVALID_REQUEST, "Food name cannot be empty");
-        }
-        if (request.getPrice() == null || request.getPrice().compareTo(java.math.BigDecimal.ZERO) <= 0) {
-            throw new AppException(ErrorCode.INVALID_REQUEST, "Price must be greater than 0");
-        }
-        if (request.getQuantity() != null && request.getQuantity() < 0) {
-            throw new AppException(ErrorCode.INVALID_REQUEST, "Quantity cannot be negative");
-        }
+    @Override
+    protected boolean existsByName(String name) { return foodRepository.existsByName(name); }
 
-        if (foodRepository.existsByName(request.getName())) {
-            throw new AppException(ErrorCode.INVALID_REQUEST, "Food name already exists");
-        }
+    @Override
+    protected String getNameFromRequest(FoodRequestDto request) { return request.getName(); }
 
-        String uploadedImageUrl = null;
-        try {
-            if (request.getImage() != null && !request.getImage().isEmpty()) {
-                uploadedImageUrl = fileUploadService.uploadImage(request.getImage());
-            } else if (request.getImageUrl() != null) {
-                uploadedImageUrl = request.getImageUrl();
-            }
+    @Override
+    protected String getNameFromEntity(Food entity) { return entity.getName(); }
 
-            Food food = Food.builder()
-                    .name(request.getName())
-                    .description(request.getDescription())
-                    .price(request.getPrice())
-                    .quantity(request.getQuantity())
-                    .imageUrl(uploadedImageUrl)
-                    .category(request.getCategory() != null ? request.getCategory() : FoodCategory.RICE)
-                    .featured(request.getFeatured() != null ? request.getFeatured() : false)
-                    .unit(request.getUnit() != null ? request.getUnit() : Unit.ITEM)
-                    .region(request.getRegion() != null ? request.getRegion() : Region.HA_NOI)
-                    .build();
+    @Override
+    protected String getImageUrl(Food entity) { return entity.getImageUrl(); }
 
-            food = foodRepository.save(food);
-            return mapToDto(food);
+    @Override
+    protected void setImageUrl(Food entity, String imageUrl) { entity.setImageUrl(imageUrl); }
 
-        } catch (Exception e) {
-            // COMPENSATING TRANSACTION: Xóa ảnh mồ côi nếu DB lưu lỗi
-            if (uploadedImageUrl != null && request.getImage() != null && !request.getImage().isEmpty()) {
-                try {
-                    fileUploadService.deleteImage(uploadedImageUrl);
-                } catch (Exception ex) {
-                    log.error("Failed to delete orphaned image: {}", uploadedImageUrl);
-                }
-            }
-            throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR, "Failed to create food: " + e.getMessage());
-        }
-    }
+    @Override
+    protected String getImageUrlFromRequest(FoodRequestDto request) { return request.getImageUrl(); }
 
-    @Transactional
-    public FoodResponseDto updateFood(Long id, FoodRequestDto request) {
+    @Override
+    protected MultipartFile getImageFileFromRequest(FoodRequestDto request) { return request.getImage(); }
 
-        Food food = foodRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Food not found"));
-
-        if (request.getName() != null &&
-                !food.getName().equals(request.getName()) &&
-                foodRepository.existsByName(request.getName())) {
-
-            throw new AppException(ErrorCode.INVALID_REQUEST, "Food name already exists");
-        }
-
-        String oldImageUrl = food.getImageUrl();
-        String newlyUploadedUrl = null;
-
-        try {
-            if (request.getImage() != null && !request.getImage().isEmpty()) {
-                newlyUploadedUrl = fileUploadService.uploadImage(request.getImage());
-                food.setImageUrl(newlyUploadedUrl);
-            } else if (request.getImageUrl() != null) {
-                food.setImageUrl(request.getImageUrl());
-            }
-
-            if (request.getName() != null) food.setName(request.getName());
-            if (request.getDescription() != null) food.setDescription(request.getDescription());
-            if (request.getPrice() != null) food.setPrice(request.getPrice());
-            if (request.getQuantity() != null) food.setQuantity(request.getQuantity());
-            if (request.getCategory() != null) food.setCategory(request.getCategory());
-            if (request.getFeatured() != null) food.setFeatured(request.getFeatured());
-            if (request.getUnit() != null) food.setUnit(request.getUnit());
-            if (request.getRegion() != null) food.setRegion(request.getRegion());
-
-            food = foodRepository.save(food);
-
-            // CHỈ XOÁ ẢNH CŨ KHI SAVE THÀNH CÔNG
-            if (newlyUploadedUrl != null && oldImageUrl != null && !oldImageUrl.isEmpty()) {
-                try {
-                    fileUploadService.deleteImage(oldImageUrl);
-                } catch (Exception ex) {
-                    log.error("Failed to delete old image: {}", oldImageUrl);
-                }
-            }
-
-            log.info("✓ Food updated: {}", id);
-            return mapToDto(food);
-
-        } catch (Exception e) {
-            // COMPENSATING TRANSACTION: Xoá ảnh mới tải lên nếu update DB thất bại
-            if (newlyUploadedUrl != null) {
-                try {
-                    fileUploadService.deleteImage(newlyUploadedUrl);
-                } catch (Exception ex) {
-                    log.error("Failed to delete orphaned new image: {}", newlyUploadedUrl);
-                }
-            }
-            throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR, "Failed to update food: " + e.getMessage());
-        }
-    }
-
-    @Transactional
-    public void deleteFood(Long id) {
-        Food food = foodRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Food not found"));
-
-        foodRepository.delete(food);
-        foodRepository.flush();
-
-        // Chỉ sau khi DB commit xong, mới xóa ảnh Cloudinary (an toàn tuyệt đối!)
-        if (food.getImageUrl() != null) {
-            try {
-                fileUploadService.deleteImage(food.getImageUrl());
-            } catch (Exception e) {
-                log.warn("⚠️ Food {} deletion failed: Cloudinary image deletion error: {}", id, e.getMessage());
-                // Log warning but don't fail the deletion - Cloudinary error shouldn't prevent deletion
-            }
-        }
-
-        log.info("✓ Food deleted successfully: {}", id);
-    }
-
-    public FoodResponseDto getFoodById(Long id) {
-
-        Food food = foodRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST, "Food not found"));
-
-        return mapToDto(food);
-    }
-
-    public PaginatedFoodResponseDto getAllFoodsPaginated(int page, int size) {
-        // Convert 1-based page to 0-based for Spring Data
-        if (page < 1) page = 1;
-        if (size < 1) size = 10;
-        Pageable pageable = PageRequest.of(page - 1, size);
-
-        // Lấy dữ liệu phân trang từ repository
-        Page<Food> foodPage = foodRepository.findAll(pageable);
-
-        // Chuyển đổi Page<Food> thành List<FoodResponseDto>
-        List<FoodResponseDto> foodDtos = foodPage.getContent().stream()
-                .map(this::mapToDto)
-                .collect(Collectors.toList());
-
-        // Tạo response DTO với thông tin phân trang (convert back to 1-based for response)
-        return PaginatedFoodResponseDto.builder()
-                .data(foodDtos)
-                .pageNumber(foodPage.getNumber() + 1)  // Convert back to 1-based
-                .pageSize(foodPage.getSize())
-                .totalRecords(foodPage.getTotalElements())
-                .totalPages(foodPage.getTotalPages())
-                .hasNext(foodPage.hasNext())
-                .hasPrevious(foodPage.hasPrevious())
+    @Override
+    protected Food buildNewEntity(FoodRequestDto request, String imageUrl) {
+        return Food.builder()
+                .name(request.getName())
+                .description(request.getDescription())
+                .price(request.getPrice())
+                .quantity(request.getQuantity())
+                .imageUrl(imageUrl)
+                .category(request.getCategory() != null ? request.getCategory() : FoodCategory.RICE)
+                .featured(request.getFeatured() != null ? request.getFeatured() : false)
+                .unit(request.getUnit() != null ? request.getUnit() : Unit.ITEM)
+                .region(request.getRegion() != null ? request.getRegion() : Region.HA_NOI)
                 .build();
     }
 
-    public List<FoodResponseDto> filterFoods(List<FoodCategory> categories, Boolean featured, 
-                                             Unit unit, Long minPrice, Long maxPrice, Region region) {
-        log.info("Filtering foods - categories: {}, featured: {}, unit: {}, price: {} - {}, region: {}", 
-                  categories, featured, unit, minPrice, maxPrice, region);
-        
-        return foodRepository.findAll(FoodSpecification.filterByCriteria(categories, featured, unit, minPrice, maxPrice, region))
-                .stream()
-                .map(this::mapToDto)
-                .collect(Collectors.toList());
+    @Override
+    protected void updateEntityFields(Food entity, FoodRequestDto request) {
+        if (request.getName() != null) entity.setName(request.getName());
+        if (request.getDescription() != null) entity.setDescription(request.getDescription());
+        if (request.getPrice() != null) entity.setPrice(request.getPrice());
+        if (request.getQuantity() != null) entity.setQuantity(request.getQuantity());
+        if (request.getCategory() != null) entity.setCategory(request.getCategory());
+        if (request.getFeatured() != null) entity.setFeatured(request.getFeatured());
+        if (request.getUnit() != null) entity.setUnit(request.getUnit());
+        if (request.getRegion() != null) entity.setRegion(request.getRegion());
     }
 
-
-
-    private FoodResponseDto mapToDto(Food food) {
-
+    @Override
+    protected FoodResponseDto mapToDto(Food food) {
         return FoodResponseDto.builder()
                 .id(food.getId())
                 .name(food.getName())
@@ -228,6 +97,27 @@ public class FoodService {
                 .region(food.getRegion())
                 .createdAt(food.getCreatedAt())
                 .updatedAt(food.getUpdatedAt())
+                .build();
+    }
+
+    @Override
+    protected Specification<Food> buildFilterSpecification(List<?> categories, Boolean featured,
+                                                            Unit unit, Long minPrice, Long maxPrice, Region region) {
+        @SuppressWarnings("unchecked")
+        List<FoodCategory> foodCategories = (List<FoodCategory>) categories;
+        return FoodSpecification.filterByCriteria(foodCategories, featured, unit, minPrice, maxPrice, region);
+    }
+
+    @Override
+    protected PaginatedFoodResponseDto buildPaginatedResponse(Page<Food> page, List<FoodResponseDto> dtos) {
+        return PaginatedFoodResponseDto.builder()
+                .data(dtos)
+                .pageNumber(page.getNumber() + 1)
+                .pageSize(page.getSize())
+                .totalRecords(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .hasNext(page.hasNext())
+                .hasPrevious(page.hasPrevious())
                 .build();
     }
 }

@@ -213,7 +213,7 @@ export default function AccountPage() {
                         profile={profile}
                         onSubmit={handleUpdateProfile}
                         isLoading={isUpdatingProfile}
-                        error={updateError?.message}
+                        // error={updateError?.message}
                         onCancel={() => setIsEditing(false)}
                       />
                     ) : (

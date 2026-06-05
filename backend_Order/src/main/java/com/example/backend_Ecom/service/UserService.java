@@ -23,8 +23,6 @@ import com.example.backend_Ecom.security.JwtService;
 import com.example.backend_Ecom.security.UserPrincipal;
 
 
-
-
 import java.util.stream.Collectors;
 import java.util.List;
 import java.util.UUID;
@@ -60,7 +58,7 @@ public class UserService {
      */
     public LoginResponseDto login(LoginRequestDto request) {
         log.info("Login attempt for email: {}", request.getEmail());
-        
+
         User user = userJpaRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> {
                     log.warn("Login failed: User not found with email: {}", request.getEmail());
@@ -70,9 +68,9 @@ public class UserService {
         // Check if account is locked due to multiple failed login attempts
         if (isAccountLocked(user)) {
             log.warn("Login failed: Account locked for email: {}", request.getEmail());
-            throw new AppException(ErrorCode.ACCOUNT_LOCKED, 
-                "Account is locked due to multiple failed login attempts. Please try again in " + 
-                getMinutesUntilUnlock(user) + " minutes.");
+            throw new AppException(ErrorCode.ACCOUNT_LOCKED,
+                    "Account is locked due to multiple failed login attempts. Please try again in " +
+                            getMinutesUntilUnlock(user) + " minutes.");
         }
 
         // Check if email is verified
@@ -102,9 +100,9 @@ public class UserService {
 
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
-        
+
         log.info("User logged in successfully: {}", request.getEmail());
-        
+
         return LoginResponseDto.builder()
                 .id(user.getId())
                 .username(user.getUsername())
@@ -121,12 +119,12 @@ public class UserService {
      */
     public RegisterResponseDto register(RegisterRequestDto request) {
         log.info("Registration attempt for email: {}", request.getEmail());
-        
+
         if (userJpaRepository.existsByEmail(request.getEmail())){
             log.warn("Registration failed: Email already exists: {}", request.getEmail());
             throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS, "Email already exists");
         }
-        
+
         if (userJpaRepository.existsByPhoneNumber(request.getPhoneNumber())){
             log.warn("Registration failed: Phone number already exists: {}", request.getPhoneNumber());
             throw new AppException(ErrorCode.PHONE_ALREADY_EXISTS, "Phone number already exists");
@@ -139,7 +137,7 @@ public class UserService {
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setPhoneNumber(request.getPhoneNumber());
         user.setAvatar(request.getAvatar());
-        
+
         // Set email verification status and user status
         user.setEmailVerified(false);
         user.setStatus(UserStatus.ACTIVE);
@@ -157,23 +155,23 @@ public class UserService {
         // Generate OTP for email verification
         String otp = otpService.generateOtp();
         LocalDateTime otpExpiry = LocalDateTime.now().plusMinutes(10);
-        
-        // Create verification token with OTP
+
+        // Create verification token with HASHED OTP
         VerificationToken verificationToken = new VerificationToken();
         verificationToken.setUser(user);
-        verificationToken.setOtp(otp);
+        verificationToken.setOtp(passwordEncoder.encode(otp)); // ĐÃ FIX
         verificationToken.setOtpExpiry(otpExpiry);
         verificationToken.setToken(UUID.randomUUID().toString());
         verificationToken.setExpiryDate(LocalDateTime.now().plusHours(24)); // Token link expiry (if needed for email link)
         verificationToken.setUsed(false);
         verificationTokenRepository.save(verificationToken);
-        
-        // Send verification email with OTP
+
+        // Send verification email with PLAIN TEXT OTP
         emailService.sendVerificationEmail(user.getEmail(), otp);
         log.info("Verification OTP sent to: {} | OTP: {}", user.getEmail(), otp);
-        
+
         log.info("User registered successfully: {}", request.getEmail());
-        
+
         return RegisterResponseDto.builder()
                 .id(user.getId())
                 .username(user.getUsername())
@@ -191,57 +189,57 @@ public class UserService {
      */
     public UserResponseDto verifyEmail(VerifyEmailRequestDto request) {
         log.info("Email verification request for: {}", request.getEmail());
-        
+
         // Find user by email
         User user = userJpaRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> {
                     log.warn("Email verification failed: User not found for email: {}", request.getEmail());
                     return new AppException(ErrorCode.USER_NOT_FOUND, "User not found");
                 });
-        
+
         // Check if email is already verified
         if (user.getEmailVerified()) {
             log.warn("Email verification failed: Email already verified for user: {}", request.getEmail());
             throw new AppException(ErrorCode.APP_EXCEPTION, "Email is already verified");
         }
-        
+
         // Validate OTP format
         if (!otpService.isValidOtpFormat(request.getOtp())) {
             log.warn("Email verification failed: Invalid OTP format for user: {}", request.getEmail());
             throw new AppException(ErrorCode.INVALID_TOKEN, "Invalid OTP format. OTP must be 6 digits");
         }
-        
+
         // Find active verification token for user
         VerificationToken verificationToken = verificationTokenRepository.findByUserIdAndUsedFalse(user.getId())
                 .orElseThrow(() -> {
                     log.warn("Email verification failed: No active verification token for user: {}", request.getEmail());
                     return new AppException(ErrorCode.INVALID_TOKEN, "No active verification token found");
                 });
-        
+
         // Check if OTP has expired
         if (verificationToken.isOtpExpired()) {
             log.warn("Email verification failed: OTP expired for user: {}", request.getEmail());
             throw new AppException(ErrorCode.INVALID_TOKEN, "OTP has expired. Please request a new OTP");
         }
-        
-        // Validate OTP matches
-        if (!verificationToken.getOtp().equals(request.getOtp())) {
+
+        // Validate OTP matches (USING BCRYPT MATCHES)
+        if (!passwordEncoder.matches(request.getOtp(), verificationToken.getOtp())) { // ĐÃ FIX
             log.warn("Email verification failed: Invalid OTP for user: {}", request.getEmail());
             throw new AppException(ErrorCode.INVALID_TOKEN, "Invalid OTP. Please try again");
         }
-        
+
         // Mark email as verified
         user.setEmailVerified(true);
         user = userJpaRepository.save(user);
-        
+
         // Mark verification token as used
         verificationToken.setUsed(true);
         verificationTokenRepository.save(verificationToken);
-        
+
         // Send success email
         emailService.sendVerificationSuccessEmail(user.getEmail());
         log.info("Email verified successfully for user: {}", user.getEmail());
-        
+
         // Return updated user data
         return mapToDto(user);
     }
@@ -252,18 +250,18 @@ public class UserService {
      */
     public void forgotPassword(ForgotPasswordRequestDto request) {
         log.info("Forgot password request for: {}", request.getEmail());
-        
+
         // Find user by email
         User user = userJpaRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> {
                     log.warn("Forgot password failed: User not found for email: {}", request.getEmail());
                     return new AppException(ErrorCode.USER_NOT_FOUND, "User not found");
                 });
-        
+
         // Generate OTP for password reset
         String otp = otpService.generateOtp();
         LocalDateTime otpExpiry = LocalDateTime.now().plusMinutes(10);
-        
+
         // Create or update verification token for password reset
         // Mark any existing unused tokens as used to prevent multiple OTPs
         verificationTokenRepository.findByUserIdAndUsedFalse(user.getId())
@@ -271,18 +269,18 @@ public class UserService {
                     token.setUsed(true);
                     verificationTokenRepository.save(token);
                 });
-        
-        // Create new password reset token
+
+        // Create new password reset token with HASHED OTP
         VerificationToken resetToken = new VerificationToken();
         resetToken.setUser(user);
-        resetToken.setOtp(otp);
+        resetToken.setOtp(passwordEncoder.encode(otp)); // ĐÃ FIX
         resetToken.setOtpExpiry(otpExpiry);
         resetToken.setToken(UUID.randomUUID().toString());
         resetToken.setExpiryDate(LocalDateTime.now().plusHours(24));
         resetToken.setUsed(false);
         verificationTokenRepository.save(resetToken);
-        
-        // Send password reset email with OTP
+
+        // Send password reset email with PLAIN TEXT OTP
         emailService.sendPasswordResetEmail(user.getEmail(), otp);
         log.info("Password reset OTP sent to: {} | OTP: {}", user.getEmail(), otp);
     }
@@ -293,49 +291,49 @@ public class UserService {
      */
     public void resetPassword(ResetPasswordRequestDto request) {
         log.info("Password reset request for: {}", request.getEmail());
-        
+
         // Find user by email
         User user = userJpaRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> {
                     log.warn("Password reset failed: User not found for email: {}", request.getEmail());
                     return new AppException(ErrorCode.USER_NOT_FOUND, "User not found");
                 });
-        
+
         // Validate OTP format
         if (!otpService.isValidOtpFormat(request.getOtp())) {
             log.warn("Password reset failed: Invalid OTP format for user: {}", request.getEmail());
             throw new AppException(ErrorCode.INVALID_TOKEN, "Invalid OTP format. OTP must be 6 digits");
         }
-        
+
         // Find active password reset token
         VerificationToken resetToken = verificationTokenRepository.findByUserIdAndUsedFalse(user.getId())
                 .orElseThrow(() -> {
                     log.warn("Password reset failed: No active reset token for user: {}", request.getEmail());
                     throw new AppException(ErrorCode.INVALID_TOKEN, "No active password reset token found");
                 });
-        
+
         // Check if OTP has expired
         if (resetToken.isOtpExpired()) {
             log.warn("Password reset failed: OTP expired for user: {}", request.getEmail());
             throw new AppException(ErrorCode.INVALID_TOKEN, "OTP has expired. Please request a new password reset");
         }
-        
-        // Validate OTP matches
-        if (!resetToken.getOtp().equals(request.getOtp())) {
+
+        // Validate OTP matches (USING BCRYPT MATCHES)
+        if (!passwordEncoder.matches(request.getOtp(), resetToken.getOtp())) { // ĐÃ FIX
             log.warn("Password reset failed: Invalid OTP for user: {}", request.getEmail());
             throw new AppException(ErrorCode.INVALID_TOKEN, "Invalid OTP. Please try again");
         }
-        
+
         // Update password
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         user.setIsAccountLocked(false);
         user.setFailedLoginAttempts(0);
         user = userJpaRepository.save(user);
-        
+
         // Mark reset token as used
         resetToken.setUsed(true);
         verificationTokenRepository.save(resetToken);
-        
+
         // Send password reset success email
         emailService.sendPasswordResetSuccessEmail(user.getEmail());
         log.info("Password reset successfully for user: {}", user.getEmail());
@@ -346,33 +344,33 @@ public class UserService {
      */
     public RefreshTokenResponseDto refreshToken(RefreshTokenRequestDto request) {
         log.info("Refresh token request");
-        
+
         String refreshToken = request.getRefreshToken();
         String email = jwtService.extractEmail(refreshToken);  // Extract email from token
-        
+
         if (email == null) {
             log.warn("Refresh token failed: Invalid token format");
             throw new AppException(ErrorCode.INVALID_TOKEN, "Invalid refresh token format");
         }
-        
+
         UserDetails userDetails = userDetailsService.loadUserByUsername(email);  // Load user by email
-        
+
         if (!jwtService.isRefreshTokenValid(refreshToken, userDetails)) {
             log.warn("Refresh token failed: Token validation failed for user: {}", email);
             throw new AppException(ErrorCode.TOKEN_EXPIRED, "Invalid or expired refresh token");
         }
-        
+
         User user = userJpaRepository.findByEmail(email)
                 .orElseThrow(() -> {
                     log.warn("User not found: {}", email);
                     return new AppException(ErrorCode.USER_NOT_FOUND, "User not found");
                 });
-        
+
         String newAccessToken = jwtService.generateAccessToken(user);
         String newRefreshToken = jwtService.generateRefreshToken(user);
-        
+
         log.info("Token refreshed successfully for user: {}", email);
-        
+
         return RefreshTokenResponseDto.builder()
                 .accessToken(newAccessToken)
                 .refreshToken(newRefreshToken)
@@ -412,7 +410,7 @@ public class UserService {
         if (user.getFailedLoginAttempts() >= MAX_LOGIN_ATTEMPTS) {
             user.setIsAccountLocked(true);
             user.setLockoutTime(LocalDateTime.now());
-            log.warn("Account locked for user: {} due to {} failed login attempts", 
+            log.warn("Account locked for user: {} due to {} failed login attempts",
                     user.getEmail(), user.getFailedLoginAttempts());
         }
 
@@ -457,7 +455,7 @@ public class UserService {
 
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime lockoutExpiry = user.getLockoutTime().plus(LOCKOUT_DURATION_MINUTES, ChronoUnit.MINUTES);
-        
+
         long minutesRemaining = ChronoUnit.MINUTES.between(now, lockoutExpiry);
         return Math.max(minutesRemaining, 1); // Minimum 1 minute
     }
@@ -479,7 +477,7 @@ public class UserService {
     public PaginatedUserResponseDto getAllUsersPaginated(int page, int size) {
         if (page < 1) page = 1;
         if (size < 1) size = 10;
-        
+
         // Convert 1-based page to 0-based for Spring Data
         Pageable pageable = PageRequest.of(page - 1, size);
 
@@ -520,14 +518,14 @@ public class UserService {
     public UserResponseDto updateUser(Long id, UserUpdateRequestDto request, UserPrincipal currentUser) {
         validateUserAccess(id, currentUser);
         log.info("Updating user: {}", id);
-        
+
         User user = userJpaRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND, "User not found with ID: " + id));
 
         if (request.getEmail() != null && !request.getEmail().isBlank()) {
             // Check if email is already used by another user
-            if (!user.getEmail().equals(request.getEmail()) && 
-                userJpaRepository.existsByEmail(request.getEmail())) {
+            if (!user.getEmail().equals(request.getEmail()) &&
+                    userJpaRepository.existsByEmail(request.getEmail())) {
                 throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS, "Email already exists");
             }
             user.setEmail(request.getEmail());
@@ -536,20 +534,18 @@ public class UserService {
         if (request.getUserName() != null && !request.getUserName().isBlank()) {
             user.setUsername(request.getUserName());
         }
-        
+
         if (request.getPhoneNumber() != null && !request.getPhoneNumber().isBlank()) {
             // Check if phone number is already used by another user
-            if (!user.getPhoneNumber().equals(request.getPhoneNumber()) && 
-                userJpaRepository.existsByPhoneNumber(request.getPhoneNumber())) {
+            if (!user.getPhoneNumber().equals(request.getPhoneNumber()) &&
+                    userJpaRepository.existsByPhoneNumber(request.getPhoneNumber())) {
                 throw new AppException(ErrorCode.PHONE_ALREADY_EXISTS, "Phone number already exists");
             }
             user.setPhoneNumber(request.getPhoneNumber());
         }
-        
-        // Handle avatar - either upload file or use URL  
+
+        // Handle avatar - either upload file or use URL
         if (request.getAvatar() != null && !request.getAvatar().isEmpty()) {
-            // ✅ FIX Lỗi #10: Thu tự an toàn: Upload mới → Save DB → flush() xác nhận → Mới xóa cũ
-            // (Trước: xóa cũ trước, upload mới, rồi save → nếu save xật = zombie URL)
             String oldAvatarUrl = user.getAvatar();
             String newAvatarUrl = fileUploadService.uploadImage(request.getAvatar());
             user.setAvatar(newAvatarUrl);
@@ -562,7 +558,6 @@ public class UserService {
                     fileUploadService.deleteImage(oldAvatarUrl);
                 } catch (Exception e) {
                     log.warn("⚠️ Avatar updated in DB but old Cloudinary image deletion failed for user: {}. URL: {}", id, oldAvatarUrl);
-                    // Không throw → không rollback DB vì DB đã commit thành công rồi
                 }
             }
         } else if (request.getAvatarUrl() != null && !request.getAvatarUrl().isBlank()) {
@@ -572,7 +567,7 @@ public class UserService {
             user = userJpaRepository.save(user);
         }
         log.info("User updated successfully: {}", id);
-        
+
         return mapToDto(user);
     }
 
@@ -589,7 +584,6 @@ public class UserService {
         }
     }
 
-//change password
     /**
      * Change user password and return a simple success response
      */
@@ -609,7 +603,7 @@ public class UserService {
             throw new AppException(ErrorCode.INVALID_CREDENTIALS, "Mật khẩu cũ không chính xác");
         }
 
-        // 3. Kiểm tra mật khẩu mới không được trùng mật khẩu cũ (Bảo mật nâng cao)
+        // 3. Kiểm tra mật khẩu mới không được trùng mật khẩu cũ
         if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
             throw new AppException(ErrorCode.INVALID_REQUEST, "Mật khẩu mới không được trùng với mật khẩu cũ");
         }
@@ -617,7 +611,6 @@ public class UserService {
         // 4. Mã hóa mật khẩu mới và lưu
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
 
-        // Reset các thông số lockout nếu cần (như logic resetPassword mi đã viết)
         user.setIsAccountLocked(false);
         user.setFailedLoginAttempts(0);
 
@@ -641,18 +634,18 @@ public class UserService {
                 .status(user.getStatus())
                 .emailVerified(user.getEmailVerified())
                 .lastLogin(user.getLastLogin())
-                .addresses(user.getAddresses() != null ? 
-                    user.getAddresses().stream()
-                        .map(address -> AddressResponseDto.builder()
-                            .id(address.getId())
-                            .type(address.getType())
-                            .address(address.getAddress())
-                            .isDefault(address.getIsDefault())
-                            .createdAt(address.getCreatedAt())
-                            .updatedAt(address.getUpdatedAt())
-                            .build())
-                        .collect(Collectors.toList())
-                    : new java.util.ArrayList<>())
+                .addresses(user.getAddresses() != null ?
+                        user.getAddresses().stream()
+                                .map(address -> AddressResponseDto.builder()
+                                        .id(address.getId())
+                                        .type(address.getType())
+                                        .address(address.getAddress())
+                                        .isDefault(address.getIsDefault())
+                                        .createdAt(address.getCreatedAt())
+                                        .updatedAt(address.getUpdatedAt())
+                                        .build())
+                                .collect(Collectors.toList())
+                        : new java.util.ArrayList<>())
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
                 .build();
